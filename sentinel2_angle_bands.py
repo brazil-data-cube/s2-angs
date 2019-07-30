@@ -229,9 +229,10 @@ def generate_resampled_anglebands( XMLfile ):
 
 
 def main():
-	XMLfile = "/home/marujo/sensor_harmonization/S2A_MSIL1C_20190425T132241_N0207_R038_T23LLF_20190425T164208.SAFE/GRANULE/L1C_T23LLF_A020055_20190425T132236/MTD_TL.xml"
+	XMLfile = "/path/to/safedir/granule/sentinelimg/MTD_TL.xml"
 	
 	### Generates angle bands from the XML file (no resampling) and no sensor mean calculation
+	# Uncomment nex line to generate 23x23 Product
 	# generate_anglebands( XMLfile )
 
 	### Generates resampled anglebands (to 10m)
