@@ -1,7 +1,3 @@
-#!/usr/bin/env python
-
-# Created by Rennan Marujo - rennanmarujo@gmail.com 
-
 import numpy
 import os
 import xml.etree.ElementTree as ET
@@ -19,7 +15,7 @@ if len(sys.argv) < 2:
 ## Generate Sentinel Angle view bands
 ################################################################################
 
-def get_tileid( XML_File ):
+def get_tileid(XML_File):
     tile_id = ""
     # Parse the XML file 
     tree = ET.parse(XML_File)
@@ -32,11 +28,11 @@ def get_tileid( XML_File ):
 
     for segment in geninfo:
         if segment.tag == 'TILE_ID':
-            tile_id = segment.text.strip()    
+            tile_id = segment.text.strip()
     return(tile_id)
 
 
-def get_sun_angles( XML_File ):
+def get_sun_angles(XML_File):
     solar_zenith_values = numpy.empty((23,23,)) * numpy.nan #initiates matrix
     solar_azimuth_values = numpy.empty((23,23,)) * numpy.nan
 
@@ -81,7 +77,7 @@ def get_sun_angles( XML_File ):
     return (solar_zenith_values, solar_azimuth_values)
 
 
-def get_sensor_angles( XML_File ):
+def get_sensor_angles(XML_File):
     numband = 13
     sensor_zenith_values = numpy.empty((numband,23,23)) * numpy.nan #initiates matrix
     sensor_azimuth_values = numpy.empty((numband,23,23)) * numpy.nan
@@ -130,7 +126,6 @@ def get_sensor_angles( XML_File ):
 
 
 def write_intermediary(newRasterfn,rasterOrigin,proj, array):
-
     cols = array.shape[1]
     rows = array.shape[0]
     originX = rasterOrigin[0]
@@ -173,7 +168,8 @@ def generate_anglebands(XMLfile):
 
     del tmp_ds
 
-def resampled_anglebands(ang_matrix, imgref, filename):
+
+def resample_anglebands(ang_matrix, imgref, filename):
     src_ds = gdal.Open(imgref)
     src_ds.GetRasterBand(1).SetNoDataValue(numpy.nan)
     geotrans = src_ds.GetGeoTransform()  #get GeoTranform from existed 'data0'
@@ -206,6 +202,7 @@ def resampled_anglebands(ang_matrix, imgref, filename):
     del tmp_ds
     del dst_ds
 
+
 def generate_resampled_anglebands(XMLfile):
     path = os.path.split(XMLfile)[0]
     imgFolder = path + "/IMG_DATA/"
@@ -227,22 +224,36 @@ def generate_resampled_anglebands(XMLfile):
     sensor_zenith_mean /= len(sensor_azimuth)
     sensor_azimuth_mean /= len(sensor_azimuth)
 
-    resampled_anglebands(solar_zenith, imgref, (angFolder + scenename + '_solar_zenith_resampled.tif'))
-    resampled_anglebands(solar_azimuth, imgref, (angFolder + scenename + 'solar_azimuth_resampled.tif'))
-    resampled_anglebands(sensor_zenith_mean, imgref, (angFolder + scenename + 'sensor_zenith_mean_resampled.tif'))
-    resampled_anglebands(sensor_azimuth_mean, imgref, (angFolder + scenename + 'sensor_azimuth_mean_resampled.tif'))
+    sz_path = angFolder + scenename + '_solar_zenith_resampled.tif'
+    sa_path = angFolder + scenename + '_solar_azimuth_resampled.tif'
+    vz_path = angFolder + scenename + '_sensor_zenith_mean_resampled.tif'
+    va_path = angFolder + scenename + '_sensor_azimuth_mean_resampled.tif'
+
+    resample_anglebands(solar_zenith, imgref, sz_path)
+    resample_anglebands(solar_azimuth, imgref, sa_path)
+    resample_anglebands(sensor_zenith_mean, imgref, vz_path)
+    resample_anglebands(sensor_azimuth_mean, imgref, va_path)
+
+    return sz_path, sa_path, vz_path, va_path
+
+
+def xml_from_safe(SAFEfile):
+    return os.path.join(SAFEfile, 'GRANULE', os.path.join(os.listdir(os.path.join(SAFEfile,'GRANULE/'))[0], 'MTD_TL.xml'))
+
+
+def gen_s2_ang(SAFEfile):
+    xml = xml_from_safe(SAFEfile)
+    ### generate 23x23 Product (not resampled)
+    # generate_anglebands(os.path.join(SAFEfile, 'GRANULE', os.path.join(os.listdir(os.path.join(SAFEfile,'GRANULE/'))[0], 'MTD_TL.xml')))
+
+    ### Generates resampled anglebands (to 10m)
+    sz_path, sa_path, vz_path, va_path = generate_resampled_anglebands(xml)
+    return sz_path, sa_path, vz_path, va_path
+
 
 
 def main():
-    SAFEfile = '{}'.format(sys.argv[1]) #path to SAFE
-    XMLfile = os.path.join(SAFEfile, 'GRANULE', os.path.join(os.listdir(os.path.join(SAFEfile,'GRANULE/'))[0], 'MTD_TL.xml'))
-
-    ### Generates angle bands from the XML file (no resampling) and no sensor mean calculation
-    # Uncomment nex line to generate 23x23 Product
-    # generate_anglebands(XMLfile)
-
-    ### Generates resampled anglebands (to 10m)
-    generate_resampled_anglebands(XMLfile)
+    gen_s2_ang(sys.argv[1]) #path to SAFE
 
 
 if __name__ == '__main__':
