@@ -1,14 +1,19 @@
-import numpy
-import os
-import xml.etree.ElementTree as ET
-import time
+# Python Native
+from zipfile import ZipFile
 import glob
+import os
+import shutil
 import sys
+import time
+import xml.etree.ElementTree as ET
 
+# 3rdparty
 from osgeo import gdal, osr, ogr
+import numpy
+
 
 if len(sys.argv) < 2:
-    print('ERROR: usage: <path to SAFE>')
+    print('ERROR: usage: <path to .SAFE .zip or MTD_TL.xml >')
     sys.exit()
 
 ################################################################################
@@ -136,7 +141,7 @@ def write_intermediary(newRasterfn,rasterOrigin,proj, array):
     outRaster.SetGeoTransform((originX, 5000, 0, originY, 0, -5000))
     outband = outRaster.GetRasterBand(1)
     outband.WriteArray(array)
-    outRaster.SetProjection( proj )
+    outRaster.SetProjection(proj)
     outband.FlushCache()
 
 
@@ -241,7 +246,7 @@ def xml_from_safe(SAFEfile):
     return os.path.join(SAFEfile, 'GRANULE', os.path.join(os.listdir(os.path.join(SAFEfile,'GRANULE/'))[0], 'MTD_TL.xml'))
 
 
-def gen_s2_ang(SAFEfile):
+def gen_s2_ang_from_SAFE(SAFEfile):
     xml = xml_from_safe(SAFEfile)
     ### generate 23x23 Product (not resampled)
     # generate_anglebands(os.path.join(SAFEfile, 'GRANULE', os.path.join(os.listdir(os.path.join(SAFEfile,'GRANULE/'))[0], 'MTD_TL.xml')))
@@ -251,9 +256,34 @@ def gen_s2_ang(SAFEfile):
     return sz_path, sa_path, vz_path, va_path
 
 
+def gen_s2_ang_from_xml(xml):
+    sz_path, sa_path, vz_path, va_path = generate_resampled_anglebands(xml)
+    return sz_path, sa_path, vz_path, va_path
+
+
+def gen_s2_ang_from_zip(zipfile):
+    with ZipFile(zipfile) as zipObj:
+        zipfoldername = zipObj.namelist()[0][:-1]
+    work_dir = os.getcwd()
+    os.mkdir('s2_ang_tmp')
+    temp_dir = os.path.join(os.getcwd(), 's2_ang_tmp')
+    shutil.unpack_archive(zipfile, temp_dir, 'zip')
+    SAFEfile = os.path.join(temp_dir, zipfoldername)
+    xml = xml_from_safe(SAFEfile)
+    sz_path, sa_path, vz_path, va_path = generate_resampled_anglebands(xml)
+    ang_dir = os.path.join(SAFEfile,'GRANULE', os.listdir(os.path.join(SAFEfile,'GRANULE/'))[0], 'ANG_DATA')
+    shutil.move(ang_dir, work_dir)
+    shutil.rmtree(temp_dir)
+    return sz_path, sa_path, vz_path, va_path
+
 
 def main():
-    gen_s2_ang(sys.argv[1]) #path to SAFE
+    if sys.argv[1].endswith('.SAFE'):
+        gen_s2_ang_from_SAFE(sys.argv[1]) #path to SAFE
+    elif sys.argv[1].endswith('MTD_TL.xml'):
+        gen_s2_ang_from_xml(sys.argv[1]) #path MTD_TL.xml
+    elif sys.argv[1].endswith('.zip'):
+        gen_s2_ang_from_zip(sys.argv[1]) #path to .zip
 
 
 if __name__ == '__main__':
@@ -261,4 +291,3 @@ if __name__ == '__main__':
     main()
     end = time.time()
     print("Duration time: {}".format(end - start))
-    print("END :]")
