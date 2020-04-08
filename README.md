@@ -2,7 +2,7 @@
 
 Generate Sentinel-2 Resampled Angle bands (Solar Azimuth, Solar Zenith, Sensor Azimuth, Sensor Zenith).
 
-This script resamples, through bilinear function, the angle bands (Solar Azimuth, Solar Zenith, View Azimuth and View Zenith) provided inside a Sentinel-2 .SAFE MTD_TL.xml, which are originally provided as a 23x23 grid (5000 m resolution) to a 10 m spatial resolution.
+This script uses Sentinel-2 L1C products as input to generate angle bands (Solar Azimuth, Solar Zenith, View Azimuth and View Zenith). Originally the angles are provided as a 23x23 grid (5000 m resolution) in MTD_TL.xml file (Inside GRANULE folder). This script resample the angles through bilinear function to a 10 m spatial resolution.
 
 
 ## Dependencies
@@ -69,3 +69,6 @@ View_zenith_resample
 
 <img width="300" height="300" src="https://github.com/marujore/sentinel_angle_bands/blob/master/doc/imgs/View_zenith_resample.png">
 
+## Disclaimer
+
+The script may not work on L2A products, since the MTD_TL.xml file is different from L1C.
