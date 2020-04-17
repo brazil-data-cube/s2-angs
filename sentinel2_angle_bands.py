@@ -13,7 +13,7 @@ import numpy
 
 
 if len(sys.argv) < 2:
-    print('ERROR: usage: <path to L1C .SAFE .zip or MTD_TL.xml >')
+    print('ERROR: usage: <path to L1C .SAFE, .zip or MTD_TL.xml >')
     sys.exit()
 
 ################################################################################
