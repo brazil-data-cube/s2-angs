@@ -265,7 +265,7 @@ def gen_s2_ang_from_zip(zipfile):
     with ZipFile(zipfile) as zipObj:
         zipfoldername = zipObj.namelist()[0][:-1]
     work_dir = os.getcwd()
-    os.mkdir('s2_ang_tmp')
+    os.mkdir('s2_ang_tmp', exist_ok=True)
     temp_dir = os.path.join(os.getcwd(), 's2_ang_tmp')
     shutil.unpack_archive(zipfile, temp_dir, 'zip')
     SAFEfile = os.path.join(temp_dir, zipfoldername)
@@ -278,7 +278,9 @@ def gen_s2_ang_from_zip(zipfile):
 
 
 def main():
-    if sys.argv[1].endswith('.SAFE'):
+    if sys.argv[1].find("_MSIL2A_"):
+        print("ERROR: Input uses L1C product, not L2A. Change your input file.")
+    elif sys.argv[1].endswith('.SAFE'):
         gen_s2_ang_from_SAFE(sys.argv[1]) #path to SAFE
     elif sys.argv[1].endswith('MTD_TL.xml'):
         gen_s2_ang_from_xml(sys.argv[1]) #path MTD_TL.xml
