@@ -22,7 +22,10 @@ pip install .
 
 ## Usage
 
-See `example.py <./example.py>`.
+`import s2_angs
+
+#You can indicate a .zip, a .SAFE or the MTD_TL.xml file
+s2_angs.gen_s2_ang('/path/to/my/S2_file/S2B_MSIL1C_20191223T131239_N0208_R138_T23KMR_20191223T135458.zip')`
 
 ## Results
 ### Intermediary files (matrix 23x23)
