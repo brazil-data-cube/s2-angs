@@ -11,10 +11,6 @@ from osgeo import gdal, osr, ogr
 import numpy
 
 
-if len(sys.argv) < 2:
-    print('ERROR: usage: <path to L1C .SAFE, .zip or MTD_TL.xml >')
-    sys.exit()
-
 ################################################################################
 ## Generate Sentinel Angle view bands
 ################################################################################
@@ -138,7 +134,6 @@ def get_sensor_angles(xml):
                 zvalues = zvalrow.text.split(' ')
                 avalues = avalrow.text.split(' ')
                 values = list(zip( zvalues, avalues )) #row of values
-                # print(values[0])
                 for cindex in range(len(values)):
                     if ( values[cindex][0] != 'NaN' and values[cindex][1] != 'NaN' ):
                         zen = float( values[cindex][0] )
@@ -336,7 +331,7 @@ def gen_s2_ang_from_zip(zipfile):
     with ZipFile(zipfile) as zipObj:
         zipfoldername = zipObj.namelist()[0][:-1]
     work_dir = os.getcwd()
-    os.mkdir('s2_ang_tmp', exist_ok=True)
+    os.makedirs('s2_ang_tmp', exist_ok=True)
     temp_dir = os.path.join(os.getcwd(), 's2_ang_tmp')
     shutil.unpack_archive(zipfile, temp_dir, 'zip')
     SAFEfile = os.path.join(temp_dir, zipfoldername)
@@ -354,19 +349,12 @@ def gen_s2_ang(path):
     Parameters:
        zipfile (str): path to zipfile.
     """
-    if path.find("_MSIL2A_"):
-        print("ERROR: Input uses L1C product, not L2A. Change your input file.")
+    print('Generating angles from {}'.format(path), flush=True)
+    if path.find("_MSIL2A_") is not -1:
+        print('ERROR: Input uses L1C product, not L2A. Change your input file.', flush=True)
     elif path.endswith('.SAFE'):
         gen_s2_ang_from_SAFE(path) #path to SAFE
     elif path.endswith('MTD_TL.xml'):
         gen_s2_ang_from_xml(path) #path MTD_TL.xml
     elif path.endswith('.zip'):
         gen_s2_ang_from_zip(path) #path to .zip
-
-
-if __name__ == '__main__':
-    start = time.time()
-    path = sys.argv[1]
-    gen_s2_ang(path)
-    end = time.time()
-    print("Duration time: {}".format(end - start))
