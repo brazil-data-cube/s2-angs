@@ -353,8 +353,10 @@ def gen_s2_ang(path):
     if path.find("_MSIL2A_") is not -1:
         print('ERROR: Input uses L1C product, not L2A. Change your input file.', flush=True)
     elif path.endswith('.SAFE'):
-        gen_s2_ang_from_SAFE(path) #path to SAFE
+        sz_path, sa_path, vz_path, va_path = gen_s2_ang_from_SAFE(path) #path to SAFE
     elif path.endswith('MTD_TL.xml'):
-        gen_s2_ang_from_xml(path) #path MTD_TL.xml
+        sz_path, sa_path, vz_path, va_path = gen_s2_ang_from_xml(path) #path MTD_TL.xml
     elif path.endswith('.zip'):
-        gen_s2_ang_from_zip(path) #path to .zip
+        sz_path, sa_path, vz_path, va_path = gen_s2_ang_from_zip(path) #path to .zip
+
+    return sz_path, sa_path, vz_path, va_path
