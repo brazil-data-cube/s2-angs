@@ -7,7 +7,7 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 # 3rdparty
-from osgeo import gdal, osr, ogr
+from osgeo import gdal
 import numpy
 
 

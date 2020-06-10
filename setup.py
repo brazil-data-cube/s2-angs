@@ -9,7 +9,7 @@ install_requires = [
 
 setup(
     # Needed to silence warnings (and to be a worthwhile package)
-    name='s2-angs',
+    name='s2angs',
     url='https://github.com/marujore/sentinel2_angle_bands',
     author='Rennan Marujo',
     author_email='rennanmarujo@gmail.com',
