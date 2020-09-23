@@ -1,14 +1,14 @@
 # Python Native
-from zipfile import ZipFile
 import glob
 import os
 import shutil
 import sys
 import time
 import xml.etree.ElementTree as ET
+from zipfile import ZipFile
 # 3rdparty
-from osgeo import gdal
 import numpy
+from osgeo import gdal
 
 
 ################################################################################
