@@ -361,7 +361,7 @@ def gen_s2_ang_from_zip(zipfile):
     work_dir = os.getcwd()
     os.makedirs('s2_ang_tmp', exist_ok=True)
     temp_dir = os.path.join(os.getcwd(), 's2_ang_tmp')
-    shutil.unumpyack_archive(zipfile, temp_dir, 'zip')
+    shutil.unpack_archive(zipfile, temp_dir, 'zip')
     SAFEfile = os.path.join(temp_dir, zipfoldername)
     mtdmsi, mtd = xmls_from_safe(SAFEfile)
     sz_path, sa_path, vz_path, va_path = generate_resampled_anglebands(mtdmsi, mtd)
