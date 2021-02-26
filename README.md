@@ -7,8 +7,10 @@ This script uses Sentinel-2 L1C products as input to generate angle bands (Solar
 
 ## Dependencies
 
-- Numpy
-- GDAL
+- affine
+- numpy
+- rasterio
+- scikit-image
 
 ## Installing via Git
 
@@ -29,7 +31,7 @@ pip install .
 ```
 import s2_angs
 
-#You can indicate a .zip, a .SAFE or the MTD_TL.xml file
+#You can indicate a .zip or .SAFE
 s2_angs.gen_s2_ang('/path/to/my/S2_file/S2B_MSIL1C_20191223T131239_N0208_R138_T23KMR_20191223T135458.zip')
 ```
 
@@ -68,7 +70,3 @@ View_azimuth_resample
 View_zenith_resample
 
 <img width="300" height="300" src="https://github.com/marujore/sentinel_angle_bands/blob/master/doc/imgs/View_zenith_resample.png">
-
-## Disclaimer
-
-The script may not work on L2A products, since the MTD_TL.xml file is different from L1C.
