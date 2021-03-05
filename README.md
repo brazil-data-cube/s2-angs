@@ -15,13 +15,13 @@ This script uses Sentinel-2 L1C products as input to generate angle bands (Solar
 ## Installing via Git
 
 ```
-python3 -m pip install git+https://github.com/marujore/sentinel2_angle_bands
+python3 -m pip install git+https://github.com/brazil-data-cube/sentinel2_angle_bands
 ```
 
 or
 
 ```
-git clone https://github.com/marujore/sentinel2_angle_bands
+git clone https://github.com/brazil-data-cube/sentinel2_angle_bands
 cd sentinel2_angle_bands
 pip install .
 ```
@@ -39,34 +39,34 @@ s2_angs.gen_s2_ang('/path/to/my/S2_file/S2B_MSIL1C_20191223T131239_N0208_R138_T2
 ### Intermediary files (matrix 23x23)
 Solar_azimuth_23
 
-<img width="300" height="300" src="https://github.com/marujore/sentinel_angle_bands/blob/master/doc/imgs/Solar_azimuth_23.png">
+<img width="300" height="300" src="https://github.com/brazil-data-cube/sentinel2_angle_bands/blob/master/doc/imgs/Solar_azimuth_23.png">
 
 Solar_zenith_23
 
-<img width="300" height="300" src="https://github.com/marujore/sentinel_angle_bands/blob/master/doc/imgs/Solar_zenith_23.png">
+<img width="300" height="300" src="https://github.com/brazil-data-cube/sentinel2_angle_bands/blob/master/doc/imgs/Solar_zenith_23.png">
 
 View_azimuth_23
 
-<img width="300" height="300" src="https://github.com/marujore/sentinel_angle_bands/blob/master/doc/imgs/View_azimuth_23.png">
+<img width="300" height="300" src="https://github.com/brazil-data-cube/sentinel2_angle_bands/blob/master/doc/imgs/View_azimuth_23.png">
 
 View_zenith_23
 
-<img width="300" height="300" src="https://github.com/marujore/sentinel_angle_bands/blob/master/doc/imgs/View_zenith_23.png">
+<img width="300" height="300" src="https://github.com/brazil-data-cube/sentinel2_angle_bands/blob/master/doc/imgs/View_zenith_23.png">
 
 
 ### Resampled
 Solar_azimuth_resampled
 
-<img width="300" height="300" src="https://github.com/marujore/sentinel_angle_bands/blob/master/doc/imgs/Solar_azimuth_resampled.png">
+<img width="300" height="300" src="https://github.com/brazil-data-cube/sentinel2_angle_bands/blob/master/doc/imgs/Solar_azimuth_resampled.png">
 
 Solar_zenith_resample
 
-<img width="300" height="300" src="https://github.com/marujore/sentinel_angle_bands/blob/master/doc/imgs/Solar_zenith_resample.png">
+<img width="300" height="300" src="https://github.com/brazil-data-cube/sentinel2_angle_bands/blob/master/doc/imgs/Solar_zenith_resample.png">
 
 View_azimuth_resample
 
-<img width="300" height="300" src="https://github.com/marujore/sentinel_angle_bands/blob/master/doc/imgs/View_zenith_azimuth_resample.png">
+<img width="300" height="300" src="https://github.com/brazil-data-cube/sentinel2_angle_bands/blob/master/doc/imgs/View_zenith_azimuth_resample.png">
 
 View_zenith_resample
 
-<img width="300" height="300" src="https://github.com/marujore/sentinel_angle_bands/blob/master/doc/imgs/View_zenith_resample.png">
+<img width="300" height="300" src="https://github.com/brazil-data-cube/sentinel2_angle_bands/blob/master/doc/imgs/View_zenith_resample.png">
