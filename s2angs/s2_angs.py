@@ -260,7 +260,8 @@ def resample_anglebands(array, imgref, filename_out, filename_intermed=None):
     resampled_array = numpy.empty(shape=(ref_shp[1], ref_shp[2]))
 
     resampled_array = resize(array,(11500,11500))
-    resampled_array = resampled_array[:ref_shp[1],:ref_shp[2]]
+    resampled_array = resampled_array[:ref_shp[1],:ref_shp[2]]*100
+    resampled_array = resampled_array.astype(numpy.intc)
 
     # write results to file
     resampled_dataset = rasterio.open(
@@ -270,10 +271,11 @@ def resample_anglebands(array, imgref, filename_out, filename_intermed=None):
         height=ref_shp[1],
         width=ref_shp[2],
         count=intermed_dataset.count,
-        dtype=str(resampled_array.dtype),
+        dtype=numpy.intc,#str(resampled_array.dtype),
         crs=intermed_dataset.crs,
         transform=profile['transform'],
-        nodata=intermed_dataset.nodata
+        nodata=intermed_dataset.nodata,
+        compress='deflate'
     )
     resampled_dataset.write(resampled_array, 1)
     resampled_dataset.close()
