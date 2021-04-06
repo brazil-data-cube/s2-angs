@@ -11,14 +11,16 @@ import rasterio
 from rasterio.io import MemoryFile
 from skimage.transform import resize
 
+from .s2_sensor_angs.s2_sensor_angs import s2_sensor_angs
+
 ################################################################################
 ## Generate Sentinel Angle view bands
 ################################################################################
 
 def extract_tileid(mtdmsi):
-    """Get tile id from MTD_TL.xml file.
+    """Get tile id from MTD_MSI.xml file.
     Parameters:
-       xml (str): path to MTD_TL.xml.
+       xml (str): path to MTD_MSI.xml.
     Returns:
        str: .SAFE tile id.
     """
@@ -42,7 +44,7 @@ def extract_tileid(mtdmsi):
                 if seg.tag == 'PRODUCT_URI':
                     tile_id = geninfo[i][j].text.strip()
 
-    return(tile_id)
+    return(tile_id.replace(".SAFE",""))
 
 
 def extract_sun_angles(xml):
@@ -86,13 +88,15 @@ def extract_sun_angles(xml):
                 avalrow = avallist[rindex]
                 zvalues = zvalrow.text.split(' ')
                 avalues = avalrow.text.split(' ')
-                values = list(zip( zvalues, avalues )) #row of values
+                values = list(zip(zvalues, avalues)) #row of values
                 for cindex in range(len(values)):
-                    if ( values[cindex][0] != 'NaN' and values[cindex][1] != 'NaN' ):
-                        zen = float(values[cindex][0] )
-                        az = float(values[cindex][1] )
+                    if ( values[cindex][0] != 'NaN' and values[cindex][1] != 'NaN'):
+                        zen = float(values[cindex][0])
+                        az = float(values[cindex][1])
                         solar_zenith_values[rindex,cindex] = zen
                         solar_azimuth_values[rindex,cindex] = az
+    solar_zenith_values = resize(solar_zenith_values,(22,22))
+    solar_azimuth_values = resize(solar_azimuth_values,(22,22))
     return (solar_zenith_values, solar_azimuth_values)
 
 
@@ -146,6 +150,8 @@ def extract_sensor_angles(xml):
                         az = float( values[cindex][1] )
                         sensor_zenith_values[bandId, rindex,cindex] = zen
                         sensor_azimuth_values[bandId, rindex,cindex] = az
+    sensor_zenith_values = resize(sensor_zenith_values,(22,22))
+    sensor_azimuth_values = resize(sensor_azimuth_values,(22,22))
     return(sensor_zenith_values, sensor_azimuth_values)
 
 
@@ -167,7 +173,8 @@ def write_raster(array, file_name, profile):
         dtype=profile['dtype'],
         crs=profile['crs'],
         transform=profile['transform'],
-        nodata=profile['nodata']
+        nodata=profile['nodata'],
+        compress='deflate'
     )
     new_dataset.write(array, 1)
     new_dataset.close()
@@ -220,6 +227,8 @@ def resample_anglebands(array, imgref, filename_out, filename_intermed=None):
     profile = src_dataset.profile
 
     profile_intermed = profile
+    if not profile_intermed['nodata']:
+        profile_intermed['nodata'] = -9999
     profile_intermed.update(width=array.shape[1], height=array.shape[0])
     intermed_aff = profile['transform']
     intermed_aff = affine.Affine(5000, intermed_aff.b, intermed_aff.c, intermed_aff.d, -5000, intermed_aff.f)
@@ -259,8 +268,9 @@ def resample_anglebands(array, imgref, filename_out, filename_intermed=None):
     ref_shp = rasterio.open(imgref).read().shape
     resampled_array = numpy.empty(shape=(ref_shp[1], ref_shp[2]))
 
-    resampled_array = resize(array,(11500,11500))
+    resampled_array = resize(array,(11000,11000))
     resampled_array = resampled_array[:ref_shp[1],:ref_shp[2]]*100
+    resampled_array[numpy.isnan(resampled_array)] = profile_intermed['nodata']
     resampled_array = resampled_array.astype(numpy.intc)
 
     # write results to file
@@ -300,26 +310,17 @@ def generate_resampled_anglebands(mtdmsi, mtd):
     imgref=imgref[0]
 
     scenename = extract_tileid(mtdmsi)
-    solar_zenith, solar_azimuth = extract_sun_angles(mtd)
-    sensor_zenith, sensor_azimuth = extract_sensor_angles(mtd)
-
-    sensor_zenith_mean = sensor_zenith[0]
-    sensor_azimuth_mean = sensor_azimuth[0]
-    for num_band in (range(1,len(sensor_azimuth))):
-        sensor_zenith_mean += sensor_zenith[num_band]
-        sensor_azimuth_mean += sensor_azimuth[num_band]
-    sensor_zenith_mean /= len(sensor_zenith)
-    sensor_azimuth_mean /= len(sensor_azimuth)
 
     sz_path = angFolder + scenename + '_SZAr.tif'
     sa_path = angFolder + scenename + '_SAAr.tif'
     vz_path = angFolder + scenename + '_VZAr.tif'
     va_path = angFolder + scenename + '_VAAr.tif'
 
+    solar_zenith, solar_azimuth = extract_sun_angles(mtd)
+    va_path, vz_path = s2_sensor_angs(mtd, imgref, va_path, vz_path)
+
     resample_anglebands(solar_zenith, imgref, sz_path)
     resample_anglebands(solar_azimuth, imgref, sa_path)
-    resample_anglebands(sensor_zenith_mean, imgref, vz_path)
-    resample_anglebands(sensor_azimuth_mean, imgref, va_path)
 
     return sz_path, sa_path, vz_path, va_path
 
