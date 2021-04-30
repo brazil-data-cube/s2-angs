@@ -293,28 +293,30 @@ def resample_anglebands(array, imgref, filename_out, filename_intermed=None):
     return
 
 
-def generate_resampled_anglebands(mtdmsi, mtd):
+def generate_resampled_anglebands(mtdmsi, mtd, imgFolder, angFolder):
     """Generates angle bands resampled to 10 meters.
     Parameters:
        xml (str): path to MTD_TL.xml.
     Returns:
        str, str, str, str: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
-    path = os.path.split(mtd)[0]
-    imgFolder = path + "/IMG_DATA/"
-    angFolder = path + "/ANG_DATA/"
     os.makedirs(angFolder, exist_ok=True)
 
-    imgref = [f for f in glob.glob(imgFolder + "**/*04*.jp2", recursive=True)]
-    imgref.sort()
-    imgref=imgref[0]
+    if not imgFolder.endswith('/'):
+        imgFolder = imgFolder + '/'
+
+    safe_jp2 = [f for f in glob.glob(imgFolder + "**/*04*.jp2", recursive=True)]
+    safe_tif = [f for f in glob.glob(imgFolder + "**/*04*.tif", recursive=True)]
+    imgref_list = safe_jp2 + safe_tif
+    imgref_list.sort()
+    imgref = imgref_list[0]
 
     scenename = extract_tileid(mtdmsi)
 
-    sz_path = angFolder + scenename + '_SZAr.tif'
-    sa_path = angFolder + scenename + '_SAAr.tif'
-    vz_path = angFolder + scenename + '_VZAr.tif'
-    va_path = angFolder + scenename + '_VAAr.tif'
+    sz_path = os.path.join(angFolder, scenename + '_SZAr.tif')
+    sa_path = os.path.join(angFolder, scenename + '_SAAr.tif')
+    vz_path = os.path.join(angFolder, scenename + '_VZAr.tif')
+    va_path = os.path.join(angFolder, scenename + '_VAAr.tif')
 
     solar_zenith, solar_azimuth = extract_sun_angles(mtd)
     va_path, vz_path = s2_sensor_angs(mtd, imgref, va_path, vz_path)
@@ -332,6 +334,7 @@ def xmls_from_safe(SAFEfile):
     Returns:
        str: path to MTD_TL.xml.
     """
+    print(SAFEfile)
     mtdmsi = [f for f in glob.glob(os.path.join(SAFEfile,"MTD_MSIL*.xml"), recursive=True)][0]
     mtd = os.path.join(SAFEfile, 'GRANULE', os.path.join(os.listdir(os.path.join(SAFEfile,'GRANULE/'))[0], 'MTD_TL.xml'))
 
@@ -347,8 +350,12 @@ def gen_s2_ang_from_SAFE(SAFEfile):
     """
     mtdmsi, mtd = xmls_from_safe(SAFEfile)
 
+    path = os.path.split(mtd)[0]
+    imgFolder = os.path.join(path, "IMG_DATA")
+    angFolder = os.path.join(path, "ANG_DATA")
+
     ### Generates resampled anglebands (to 10m)
-    sz_path, sa_path, vz_path, va_path = generate_resampled_anglebands(mtdmsi, mtd)
+    sz_path, sa_path, vz_path, va_path = generate_resampled_anglebands(mtdmsi, mtd, imgFolder, angFolder)
     return sz_path, sa_path, vz_path, va_path
 
 
@@ -367,11 +374,32 @@ def gen_s2_ang_from_zip(zipfile):
     shutil.unpack_archive(zipfile, temp_dir, 'zip')
     SAFEfile = os.path.join(temp_dir, zipfoldername)
     mtdmsi, mtd = xmls_from_safe(SAFEfile)
-    sz_path, sa_path, vz_path, va_path = generate_resampled_anglebands(mtdmsi, mtd)
+    path = os.path.split(mtd)[0]
+    imgFolder = os.path.join(path, "IMG_DATA")
+    angFolder = os.path.join(path, "ANG_DATA")
+
+    ### Generates resampled anglebands (to 10m)
+    sz_path, sa_path, vz_path, va_path = generate_resampled_anglebands(mtdmsi, mtd, imgFolder, angFolder)
     ang_dir = os.path.join(SAFEfile,'GRANULE', os.listdir(os.path.join(SAFEfile,'GRANULE/'))[0], 'ANG_DATA')
     shutil.move(ang_dir, work_dir)
     shutil.rmtree(temp_dir)
 
+    return sz_path, sa_path, vz_path, va_path
+
+
+def gen_s2_ang_from_folder(folder):
+    """Generate Sentinel 2 angles using all files in a single folder.
+    Parameters:
+       folder (str): path to Sentinel-2 folder.
+    Returns:
+       sz_path, sa_path, vz_path, va_path: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
+    """
+    mtdmsi = [f for f in glob.glob(os.path.join(folder,"MTD_MSIL*.xml"), recursive=True)][0]
+    mtd = os.path.join(folder, 'MTD_TL.xml')
+
+    ### Generates resampled anglebands (to 10m)
+    ang_folder = os.path.join(folder, 'ANG_DATA')
+    sz_path, sa_path, vz_path, va_path = generate_resampled_anglebands(mtdmsi, mtd, folder, ang_folder)
     return sz_path, sa_path, vz_path, va_path
 
 
@@ -385,5 +413,7 @@ def gen_s2_ang(path):
         sz_path, sa_path, vz_path, va_path = gen_s2_ang_from_SAFE(path) #path to SAFE
     elif path.endswith('.zip'):
         sz_path, sa_path, vz_path, va_path = gen_s2_ang_from_zip(path) #path to .zip
+    else:
+        sz_path, sa_path, vz_path, va_path = gen_s2_ang_from_folder(path)
 
     return sz_path, sa_path, vz_path, va_path
