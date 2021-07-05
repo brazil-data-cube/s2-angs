@@ -143,15 +143,15 @@ def extract_sensor_angles(xml):
                 avalrow = avallist[rindex]
                 zvalues = zvalrow.text.split(' ')
                 avalues = avalrow.text.split(' ')
-                values = list(zip( zvalues, avalues )) #row of values
+                values = list(zip(zvalues, avalues )) #row of values
                 for cindex in range(len(values)):
-                    if ( values[cindex][0] != 'NaN' and values[cindex][1] != 'NaN' ):
-                        zen = float( values[cindex][0] )
-                        az = float( values[cindex][1] )
+                    if (values[cindex][0] != 'NaN' and values[cindex][1] != 'NaN'):
+                        zen = float(values[cindex][0])
+                        az = float(values[cindex][1])
                         sensor_zenith_values[bandId, rindex,cindex] = zen
                         sensor_azimuth_values[bandId, rindex,cindex] = az
-    sensor_zenith_values = resize(sensor_zenith_values,(22,22))
-    sensor_azimuth_values = resize(sensor_azimuth_values,(22,22))
+    sensor_zenith_values = resize(sensor_zenith_values[7],(22,22))
+    sensor_azimuth_values = resize(sensor_azimuth_values[7],(22,22))
     return(sensor_zenith_values, sensor_azimuth_values)
 
 
@@ -305,9 +305,10 @@ def generate_resampled_anglebands(mtdmsi, mtd, imgFolder, angFolder):
     if not imgFolder.endswith('/'):
         imgFolder = imgFolder + '/'
 
-    safe_jp2 = [f for f in glob.glob(imgFolder + "**/*04*.jp2", recursive=True)]
-    safe_tif = [f for f in glob.glob(imgFolder + "**/*04*.tif", recursive=True)]
-    imgref_list = safe_jp2 + safe_tif
+    safe_jp2 = [f for f in glob.glob(imgFolder + "**/*B04*.jp2", recursive=True)]
+    safe_tif = [f for f in glob.glob(imgFolder + "**/*B04*.tif", recursive=True)]
+    folder_tif = [f for f in glob.glob(imgFolder + "**/*band4*.tif", recursive=True)]
+    imgref_list = safe_jp2 + safe_tif + folder_tif
     imgref_list.sort()
     imgref = imgref_list[0]
 
@@ -399,7 +400,35 @@ def gen_s2_ang_from_folder(folder):
 
     ### Generates resampled anglebands (to 10m)
     ang_folder = os.path.join(folder, 'ANG_DATA')
-    sz_path, sa_path, vz_path, va_path = generate_resampled_anglebands(mtdmsi, mtd, folder, ang_folder)
+
+    os.makedirs(ang_folder, exist_ok=True)
+
+    if not folder.endswith('/'):
+        imgFolder = folder + '/'
+
+    safe_jp2 = [f for f in glob.glob(imgFolder + "**/*B04*.jp2", recursive=True)]
+    safe_tif = [f for f in glob.glob(imgFolder + "**/*B04*.tif", recursive=True)]
+    folder_tif = [f for f in glob.glob(imgFolder + "**/*band4*.tif", recursive=True)]
+    imgref_list = safe_jp2 + safe_tif + folder_tif
+    imgref_list.sort()
+
+    imgref = imgref_list[0]
+
+    scenename = extract_tileid(mtdmsi)
+
+    sz_path = os.path.join(ang_folder, scenename + '_SZAr.tif')
+    sa_path = os.path.join(ang_folder, scenename + '_SAAr.tif')
+    vz_path = os.path.join(ang_folder, scenename + '_VZAr.tif')
+    va_path = os.path.join(ang_folder, scenename + '_VAAr.tif')
+
+    solar_zenith, solar_azimuth = extract_sun_angles(mtd)
+    view_zenith, view_azimuth = extract_sensor_angles(mtd)
+
+    resample_anglebands(solar_zenith, imgref, sz_path)
+    resample_anglebands(solar_azimuth, imgref, sa_path)
+    resample_anglebands(view_zenith, imgref, vz_path)
+    resample_anglebands(view_azimuth, imgref, va_path)
+
     return sz_path, sa_path, vz_path, va_path
 
 
