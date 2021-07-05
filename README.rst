@@ -104,7 +104,7 @@ Intermediary files (matrix 23x23)
 +++++++++++++++++++++++++++++++++
 Solar_azimuth_23
 
-.. image:: https://github.com/brazil-data-cube/sentinel2_angle_bands/blob/master/doc/imgs/Solar_azimuth_23.png
+.. image:: https://github.com/brazil-data-cube/sentinel2_angle_bands/blob/master/imgs/Solar_azimuth_23.png
         :width: 300
         :target: https://github.com/brazil-data-cube/sentinel2_angle_bands/blob/master/doc/imgs/Solar_azimuth_23.png
         :alt: Solar_azimuth_23
