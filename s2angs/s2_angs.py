@@ -192,10 +192,14 @@ def generate_anglebands(mtd):
     angFolder = path + "/ANG_DATA/"
     os.makedirs(angFolder, exist_ok=True)
 
-    #use band 4 as reference due to 10m spatial resolution
+    # Use band 4 as reference due to 10m spatial resolution
     imgref = [f for f in glob.glob(imgFolder + "**/*04*.jp2", recursive=True)]
-    imgref.sort()
-    imgref=imgref[0]
+    # Checks for empty list (No file)
+    try:
+        imgref.sort()
+        imgref=imgref[0]
+    except IndexError:
+        raise IndexError("Missing band B04 .jp2 file")
 
     src_dataset = rasterio.open(imgref)
 
@@ -309,8 +313,14 @@ def generate_resampled_anglebands(mtdmsi, mtd, imgFolder, angFolder):
     safe_tif = [f for f in glob.glob(imgFolder + "**/*B04*.tif", recursive=True)]
     folder_tif = [f for f in glob.glob(imgFolder + "**/*band4*.tif", recursive=True)]
     imgref_list = safe_jp2 + safe_tif + folder_tif
-    imgref_list.sort()
-    imgref = imgref_list[0]
+    # Use band 4 as reference due to 10m spatial resolution
+    imgref = [f for f in glob.glob(imgFolder + "**/*04*.jp2", recursive=True)]
+    # Checks for empty list (No file)
+    try:
+        imgref_list.sort()
+        imgref = imgref_list[0]
+    except IndexError:
+        raise IndexError("Missing band B04 .jp2 file") #TODO DIR
 
     scenename = extract_tileid(mtdmsi)
 
