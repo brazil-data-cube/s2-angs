@@ -10,7 +10,7 @@
    :end-before: About
 
 
-A client library in Python for generating Sentinel-2 Angle Bands[C.
+A client library in Python for generating Sentinel-2 Angle Bands.
 
 
 .. toctree::
