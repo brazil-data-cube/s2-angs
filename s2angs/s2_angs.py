@@ -2,29 +2,31 @@
 import glob
 import os
 import shutil
-import sys
-import time
 import xml.etree.ElementTree as ET
 from zipfile import ZipFile
 # 3rdparty
+import affine
 import numpy
-from osgeo import gdal
+import rasterio
+from rasterio.io import MemoryFile
+from skimage.transform import resize
 
+from .s2_sensor_angs.s2_sensor_angs import s2_sensor_angs
 
 ################################################################################
 ## Generate Sentinel Angle view bands
 ################################################################################
 
-def get_tileid(xml):
-    """Get tile id from MTD_TL.xml file.
+def extract_tileid(mtdmsi):
+    """Get tile id from MTD_MSI.xml file.
     Parameters:
-       xml (str): path to MTD_TL.xml.
+       xml (str): path to MTD_MSI.xml.
     Returns:
        str: .SAFE tile id.
     """
     tile_id = ""
-    # Parse the XML file 
-    tree = ET.parse(xml)
+    # Parse the XML file
+    tree = ET.parse(mtdmsi)
     root = tree.getroot()
 
     # Find the angles
@@ -32,14 +34,20 @@ def get_tileid(xml):
         if child.tag[-12:] == 'General_Info':
             geninfo = child
 
+    i=-1
+    j=-1
     for segment in geninfo:
-        if segment.tag == 'TILE_ID':
-            tile_id = segment.text.strip()
+        i=i+1
+        if segment.tag == 'Product_Info':
+            for seg in geninfo[i]:
+                j=j+1
+                if seg.tag == 'PRODUCT_URI':
+                    tile_id = geninfo[i][j].text.strip()
 
-    return(tile_id)
+    return(tile_id.replace(".SAFE",""))
 
 
-def get_sun_angles(xml):
+def extract_sun_angles(xml):
     """Extract Sentinel-2 solar angle bands values from MTD_TL.xml.
     Parameters:
        xml (str): path to MTD_TL.xml.
@@ -49,7 +57,7 @@ def get_sun_angles(xml):
     solar_zenith_values = numpy.empty((23,23,)) * numpy.nan #initiates matrix
     solar_azimuth_values = numpy.empty((23,23,)) * numpy.nan
 
-    # Parse the XML file 
+    # Parse the XML file
     tree = ET.parse(xml)
     root = tree.getroot()
 
@@ -80,17 +88,19 @@ def get_sun_angles(xml):
                 avalrow = avallist[rindex]
                 zvalues = zvalrow.text.split(' ')
                 avalues = avalrow.text.split(' ')
-                values = list(zip( zvalues, avalues )) #row of values
+                values = list(zip(zvalues, avalues)) #row of values
                 for cindex in range(len(values)):
-                    if ( values[cindex][0] != 'NaN' and values[cindex][1] != 'NaN' ):
-                        zen = float(values[cindex][0] )
-                        az = float(values[cindex][1] )
+                    if ( values[cindex][0] != 'NaN' and values[cindex][1] != 'NaN'):
+                        zen = float(values[cindex][0])
+                        az = float(values[cindex][1])
                         solar_zenith_values[rindex,cindex] = zen
                         solar_azimuth_values[rindex,cindex] = az
+    solar_zenith_values = resize(solar_zenith_values,(22,22))
+    solar_azimuth_values = resize(solar_azimuth_values,(22,22))
     return (solar_zenith_values, solar_azimuth_values)
 
 
-def get_sensor_angles(xml):
+def extract_sensor_angles(xml):
     """Extract Sentinel-2 view (sensor) angle bands values from MTD_TL.xml.
     Parameters:
        xml (str): path to MTD_TL.xml.
@@ -101,7 +111,7 @@ def get_sensor_angles(xml):
     sensor_zenith_values = numpy.empty((numband,23,23)) * numpy.nan #initiates matrix
     sensor_azimuth_values = numpy.empty((numband,23,23)) * numpy.nan
 
-    # Parse the XML file 
+    # Parse the XML file
     tree = ET.parse(xml)
     root = tree.getroot()
 
@@ -133,17 +143,19 @@ def get_sensor_angles(xml):
                 avalrow = avallist[rindex]
                 zvalues = zvalrow.text.split(' ')
                 avalues = avalrow.text.split(' ')
-                values = list(zip( zvalues, avalues )) #row of values
+                values = list(zip(zvalues, avalues )) #row of values
                 for cindex in range(len(values)):
-                    if ( values[cindex][0] != 'NaN' and values[cindex][1] != 'NaN' ):
-                        zen = float( values[cindex][0] )
-                        az = float( values[cindex][1] )
+                    if (values[cindex][0] != 'NaN' and values[cindex][1] != 'NaN'):
+                        zen = float(values[cindex][0])
+                        az = float(values[cindex][1])
                         sensor_zenith_values[bandId, rindex,cindex] = zen
                         sensor_azimuth_values[bandId, rindex,cindex] = az
+    sensor_zenith_values = resize(sensor_zenith_values[7],(22,22))
+    sensor_azimuth_values = resize(sensor_azimuth_values[7],(22,22))
     return(sensor_zenith_values, sensor_azimuth_values)
 
 
-def write_intermediary(newRasterfn, rasterOrigin, proj, array):
+def write_raster(array, file_name, profile):
     """Writes intermediary angle bands (not resampled, as 23x23 5000m spatial resolution).
     Parameters:
        newRasterfn (str): output raster file name.
@@ -151,147 +163,193 @@ def write_intermediary(newRasterfn, rasterOrigin, proj, array):
        proj (str): gdal projection.
        array (array): angle values array.
     """
-    cols = array.shape[1]
-    rows = array.shape[0]
-    originX = rasterOrigin[0]
-    originY = rasterOrigin[1]
-
-    driver = gdal.GetDriverByName('GTiff')
-    outRaster = driver.Create(newRasterfn, cols, rows, 1, gdal.GDT_Float32)
-    outRaster.SetGeoTransform((originX, 5000, 0, originY, 0, -5000))
-    outband = outRaster.GetRasterBand(1)
-    outband.WriteArray(array)
-    outRaster.SetProjection(proj)
-    outband.FlushCache()
+    new_dataset = rasterio.open(
+        file_name,
+        'w',
+        driver='GTiff',
+        height=profile['height'],
+        width=profile['width'],
+        count=profile['count'],
+        dtype=profile['dtype'],
+        crs=profile['crs'],
+        transform=profile['transform'],
+        nodata=profile['nodata'],
+        compress='deflate'
+    )
+    new_dataset.write(array, 1)
+    new_dataset.close()
 
     return
 
 
-def generate_anglebands(xml):
+def generate_anglebands(mtd):
     """Generate angle bands.
     Parameters:
-       xml (str): path to MTD_TL.xml.
+       mtd (str): path to MTD_TL.xml.
     """
-    path = os.path.split(xml)[0]
+    path = os.path.split(mtd)[0]
     imgFolder = path + "/IMG_DATA/"
     angFolder = path + "/ANG_DATA/"
     os.makedirs(angFolder, exist_ok=True)
 
-    #use band 4 as reference due to 10m spatial resolution
-    imgref = [f for f in glob.glob(imgFolder + "**/*04.jp2", recursive=True)][0]
+    # Use band 4 as reference due to 10m spatial resolution
+    imgref = [f for f in glob.glob(imgFolder + "**/*04*.jp2", recursive=True)]
+    # Checks for empty list (No file)
+    try:
+        imgref.sort()
+        imgref=imgref[0]
+    except IndexError:
+        raise IndexError("Missing band B04 .jp2 file")
 
-    tmp_ds = gdal.Open(imgref)
-    tmp_ds.GetRasterBand(1).SetNoDataValue(numpy.nan)
-    geotrans = tmp_ds.GetGeoTransform()  #get GeoTranform from existed 'data0'
-    proj = tmp_ds.GetProjection() #you can get from a exsited tif or import 
+    src_dataset = rasterio.open(imgref)
 
-    scenename = get_tileid(xml)
-    solar_zenith, solar_azimuth = get_sun_angles(xml)
-    sensor_zenith, sensor_azimuth = get_sensor_angles(xml)
+    profile = src_dataset.profile
+    profile.update(nodata=-9999)
 
-    rasterOrigin = (geotrans[0],geotrans[3])
+    scenename = extract_tileid(mtd)
+    solar_zenith, solar_azimuth = extract_sun_angles(mtd)
+    sensor_zenith, sensor_azimuth = extract_sensor_angles(mtd)
 
-    write_intermediary((angFolder + scenename + "solar_zenith"),rasterOrigin, proj, solar_zenith)
-    write_intermediary((angFolder + scenename + "solar_azimuth"),rasterOrigin, proj, solar_azimuth)
-    for num_band in (range(len(sensor_azimuth))):
-        write_intermediary((angFolder + scenename + "sensor_zenith_b" + str(num_band)), rasterOrigin, proj, sensor_zenith[num_band])
-        write_intermediary((angFolder + scenename + "sensor_azimuth_b" + str(num_band)), rasterOrigin, proj, sensor_azimuth[num_band])
+    write_raster(solar_zenith, (angFolder + scenename + "solar_zenith"), profile)
+    write_raster(solar_azimuth, (angFolder + scenename + "solar_azimuth"), profile)
+    write_raster(sensor_zenith, (angFolder + scenename + "sensor_zenith"), profile)
+    write_raster(sensor_azimuth, (angFolder + scenename + "sensor_azimuth"), profile)
 
-    del tmp_ds
+    del src_dataset
 
     return
 
 
-def resample_anglebands(ang_matrix, imgref, filename):
+def resample_anglebands(array, imgref, filename_out, filename_intermed=None):
     """Resample angle bands.
     Parameters:
        ang_matrix (arr): matrix of angle values.
        imgref (str): path to image that will be used as reference.
        filename (str): filename of the resampled angle band.
     """
-    src_ds = gdal.Open(imgref)
-    src_ds.GetRasterBand(1).SetNoDataValue(numpy.nan)
-    geotrans = src_ds.GetGeoTransform() #get GeoTranform from existed 'data0'
-    proj = src_ds.GetProjection() #you can get from a exsited tif or import 
+    src_dataset = rasterio.open(imgref)
+    profile = src_dataset.profile
 
-    cols = src_ds.RasterXSize
-    rows = src_ds.RasterYSize
+    profile_intermed = profile
+    if not profile_intermed['nodata']:
+        profile_intermed['nodata'] = -9999
+    profile_intermed.update(width=array.shape[1], height=array.shape[0])
+    intermed_aff = profile['transform']
+    intermed_aff = affine.Affine(5000, intermed_aff.b, intermed_aff.c, intermed_aff.d, -5000, intermed_aff.f)
 
-    rasterOrigin = (geotrans[0],geotrans[3])
+    memfile = MemoryFile()
+    intermed_dataset = memfile.open(#rasterio.open(
+        driver='GTiff',
+        height=profile_intermed['height'],
+        width=profile_intermed['width'],
+        count=profile_intermed['count'],
+        dtype=numpy.float64,
+        crs=profile_intermed['crs'],
+        transform=intermed_aff,
+        nodata=profile_intermed['nodata']
+    )
 
-    # Now, we create an in-memory raster
-    mem_drv = gdal.GetDriverByName('MEM')
-    tmp_ds = mem_drv.Create('', len(ang_matrix[0]), len(ang_matrix), 1, gdal.GDT_Float32)
+    #TODO if filename_intermed write angle bands not resampled (23x23)
+    # intermed_dataset = rasterio.open(
+    #     filename_intermed,
+    #     'w',
+    #     driver='GTiff',
+    #     height=profile_intermed['height'],
+    #     width=profile_intermed['width'],
+    #     count=profile_intermed['count'],
+    #     dtype=numpy.float64,
+    #     crs=profile_intermed['crs'],
+    #     transform=intermed_aff,
+    #     nodata=profile_intermed['nodata']
+    # )
+    # intermed_dataset.write(array, 1)
+    # intermed_dataset.close()
 
-    # Set the geotransform
-    tmp_ds.SetGeoTransform((rasterOrigin[0], 5000, 0, rasterOrigin[1], 0, -5000))
-    tmp_ds.SetProjection(proj)
-    tmp_ds.GetRasterBand(1).SetNoDataValue(numpy.nan)
-    tmp_ds.GetRasterBand(1).WriteArray(ang_matrix)
+    old_res = [intermed_aff.a, intermed_aff.e]
+    new_res = (profile['transform'][0], profile['transform'][4])
 
-    driver = gdal.GetDriverByName('GTiff')
-    dst_ds = driver.Create(filename, cols, rows, 1, gdal.GDT_Float32)
-    dst_ds.SetGeoTransform(geotrans)
-    dst_ds.SetProjection(proj)
+    # setup the transform to change the resolution
+    ref_shp = rasterio.open(imgref).read().shape
+    resampled_array = numpy.empty(shape=(ref_shp[1], ref_shp[2]))
 
-    resampling = gdal.GRA_Bilinear
-    gdal.ReprojectImage( tmp_ds, dst_ds, tmp_ds.GetProjection(), dst_ds.GetProjection(), resampling)
+    resampled_array = resize(array,(11000,11000))
+    resampled_array = resampled_array[:ref_shp[1],:ref_shp[2]]*100
+    resampled_array[numpy.isnan(resampled_array)] = profile_intermed['nodata']
+    resampled_array = resampled_array.astype(numpy.intc)
 
-    del src_ds
-    del tmp_ds
-    del dst_ds
+    # write results to file
+    resampled_dataset = rasterio.open(
+        filename_out,
+        'w',
+        driver=intermed_dataset.driver,
+        height=ref_shp[1],
+        width=ref_shp[2],
+        count=intermed_dataset.count,
+        dtype=numpy.intc,#str(resampled_array.dtype),
+        crs=intermed_dataset.crs,
+        transform=profile['transform'],
+        nodata=intermed_dataset.nodata,
+        compress='deflate'
+    )
+    resampled_dataset.write(resampled_array, 1)
+    resampled_dataset.close()
 
     return
 
 
-def generate_resampled_anglebands(xml):
+def generate_resampled_anglebands(mtdmsi, mtd, imgFolder, angFolder):
     """Generates angle bands resampled to 10 meters.
     Parameters:
        xml (str): path to MTD_TL.xml.
     Returns:
        str, str, str, str: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
-    path = os.path.split(xml)[0]
-    imgFolder = path + "/IMG_DATA/"
-    angFolder = path + "/ANG_DATA/"
     os.makedirs(angFolder, exist_ok=True)
 
-    #use band 4 as reference due to 10m spatial resolution
-    imgref = [f for f in glob.glob(imgFolder + "**/*04.jp2", recursive=True)][0]
+    if not imgFolder.endswith('/'):
+        imgFolder = imgFolder + '/'
 
-    scenename = get_tileid(xml)
-    solar_zenith, solar_azimuth = get_sun_angles(xml)
-    sensor_zenith, sensor_azimuth = get_sensor_angles(xml)
+    safe_jp2 = [f for f in glob.glob(imgFolder + "**/*B04*.jp2", recursive=True)]
+    safe_tif = [f for f in glob.glob(imgFolder + "**/*B04*.tif", recursive=True)]
+    folder_tif = [f for f in glob.glob(imgFolder + "**/*band4*.tif", recursive=True)]
+    imgref_list = safe_jp2 + safe_tif + folder_tif
+    # Use band 4 as reference due to 10m spatial resolution
+    imgref = [f for f in glob.glob(imgFolder + "**/*04*.jp2", recursive=True)]
+    # Checks for empty list (No file)
+    try:
+        imgref_list.sort()
+        imgref = imgref_list[0]
+    except IndexError:
+        raise IndexError("Missing band B04 .jp2 file") #TODO DIR
 
-    sensor_zenith_mean = sensor_zenith[0]
-    sensor_azimuth_mean = sensor_azimuth[0]
-    for num_band in (range(1,len(sensor_azimuth))):
-        sensor_zenith_mean += sensor_zenith[num_band]
-        sensor_azimuth_mean += sensor_azimuth[num_band]
-    sensor_zenith_mean /= len(sensor_azimuth)
-    sensor_azimuth_mean /= len(sensor_azimuth)
+    scenename = extract_tileid(mtdmsi)
 
-    sz_path = angFolder + scenename + '_solar_zenith_resampled.tif'
-    sa_path = angFolder + scenename + '_solar_azimuth_resampled.tif'
-    vz_path = angFolder + scenename + '_sensor_zenith_mean_resampled.tif'
-    va_path = angFolder + scenename + '_sensor_azimuth_mean_resampled.tif'
+    sz_path = os.path.join(angFolder, scenename + '_SZAr.tif')
+    sa_path = os.path.join(angFolder, scenename + '_SAAr.tif')
+    vz_path = os.path.join(angFolder, scenename + '_VZAr.tif')
+    va_path = os.path.join(angFolder, scenename + '_VAAr.tif')
+
+    solar_zenith, solar_azimuth = extract_sun_angles(mtd)
+    va_path, vz_path = s2_sensor_angs(mtd, imgref, va_path, vz_path)
 
     resample_anglebands(solar_zenith, imgref, sz_path)
     resample_anglebands(solar_azimuth, imgref, sa_path)
-    resample_anglebands(sensor_zenith_mean, imgref, vz_path)
-    resample_anglebands(sensor_azimuth_mean, imgref, va_path)
 
     return sz_path, sa_path, vz_path, va_path
 
 
-def xml_from_safe(SAFEfile):
+def xmls_from_safe(SAFEfile):
     """Obtain the MTD_TL.xml path of a .SAFE folder.
     Parameters:
        SAFEfile (str): path to Sentinel-2 .SAFE folder.
     Returns:
        str: path to MTD_TL.xml.
     """
-    return os.path.join(SAFEfile, 'GRANULE', os.path.join(os.listdir(os.path.join(SAFEfile,'GRANULE/'))[0], 'MTD_TL.xml'))
+    print(SAFEfile)
+    mtdmsi = [f for f in glob.glob(os.path.join(SAFEfile,"MTD_MSIL*.xml"), recursive=True)][0]
+    mtd = os.path.join(SAFEfile, 'GRANULE', os.path.join(os.listdir(os.path.join(SAFEfile,'GRANULE/'))[0], 'MTD_TL.xml'))
+
+    return mtdmsi, mtd
 
 
 def gen_s2_ang_from_SAFE(SAFEfile):
@@ -301,23 +359,14 @@ def gen_s2_ang_from_SAFE(SAFEfile):
     Returns:
        sz_path, sa_path, vz_path, va_path: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
-    xml = xml_from_safe(SAFEfile)
-    ### generate 23x23 Product (not resampled)
-    # generate_anglebands(os.path.join(SAFEfile, 'GRANULE', os.path.join(os.listdir(os.path.join(SAFEfile,'GRANULE/'))[0], 'MTD_TL.xml')))
+    mtdmsi, mtd = xmls_from_safe(SAFEfile)
+
+    path = os.path.split(mtd)[0]
+    imgFolder = os.path.join(path, "IMG_DATA")
+    angFolder = os.path.join(path, "ANG_DATA")
 
     ### Generates resampled anglebands (to 10m)
-    sz_path, sa_path, vz_path, va_path = generate_resampled_anglebands(xml)
-    return sz_path, sa_path, vz_path, va_path
-
-
-def gen_s2_ang_from_xml(xml):
-    """Generate Sentinel 2 angles using a MTD_TL.xml of .SAFE.
-    Parameters:
-       xml (str): path to MTD_TL.xml.
-    Returns:
-       str, str, str, str: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
-    """
-    sz_path, sa_path, vz_path, va_path = generate_resampled_anglebands(xml)
+    sz_path, sa_path, vz_path, va_path = generate_resampled_anglebands(mtdmsi, mtd, imgFolder, angFolder)
     return sz_path, sa_path, vz_path, va_path
 
 
@@ -335,11 +384,60 @@ def gen_s2_ang_from_zip(zipfile):
     temp_dir = os.path.join(os.getcwd(), 's2_ang_tmp')
     shutil.unpack_archive(zipfile, temp_dir, 'zip')
     SAFEfile = os.path.join(temp_dir, zipfoldername)
-    xml = xml_from_safe(SAFEfile)
-    sz_path, sa_path, vz_path, va_path = generate_resampled_anglebands(xml)
+    mtdmsi, mtd = xmls_from_safe(SAFEfile)
+    path = os.path.split(mtd)[0]
+    imgFolder = os.path.join(path, "IMG_DATA")
+    angFolder = os.path.join(path, "ANG_DATA")
+
+    ### Generates resampled anglebands (to 10m)
+    sz_path, sa_path, vz_path, va_path = generate_resampled_anglebands(mtdmsi, mtd, imgFolder, angFolder)
     ang_dir = os.path.join(SAFEfile,'GRANULE', os.listdir(os.path.join(SAFEfile,'GRANULE/'))[0], 'ANG_DATA')
     shutil.move(ang_dir, work_dir)
     shutil.rmtree(temp_dir)
+
+    return sz_path, sa_path, vz_path, va_path
+
+
+def gen_s2_ang_from_folder(folder):
+    """Generate Sentinel 2 angles using all files in a single folder.
+    Parameters:
+       folder (str): path to Sentinel-2 folder.
+    Returns:
+       sz_path, sa_path, vz_path, va_path: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
+    """
+    mtdmsi = [f for f in glob.glob(os.path.join(folder,"MTD_MSIL*.xml"), recursive=True)][0]
+    mtd = os.path.join(folder, 'MTD_TL.xml')
+
+    ### Generates resampled anglebands (to 10m)
+    ang_folder = os.path.join(folder, 'ANG_DATA')
+
+    os.makedirs(ang_folder, exist_ok=True)
+
+    if not folder.endswith('/'):
+        imgFolder = folder + '/'
+
+    safe_jp2 = [f for f in glob.glob(imgFolder + "**/*B04*.jp2", recursive=True)]
+    safe_tif = [f for f in glob.glob(imgFolder + "**/*B04*.tif", recursive=True)]
+    folder_tif = [f for f in glob.glob(imgFolder + "**/*band4*.tif", recursive=True)]
+    imgref_list = safe_jp2 + safe_tif + folder_tif
+    imgref_list.sort()
+
+    imgref = imgref_list[0]
+
+    scenename = extract_tileid(mtdmsi)
+
+    sz_path = os.path.join(ang_folder, scenename + '_SZAr.tif')
+    sa_path = os.path.join(ang_folder, scenename + '_SAAr.tif')
+    vz_path = os.path.join(ang_folder, scenename + '_VZAr.tif')
+    va_path = os.path.join(ang_folder, scenename + '_VAAr.tif')
+
+    solar_zenith, solar_azimuth = extract_sun_angles(mtd)
+    view_zenith, view_azimuth = extract_sensor_angles(mtd)
+
+    resample_anglebands(solar_zenith, imgref, sz_path)
+    resample_anglebands(solar_azimuth, imgref, sa_path)
+    resample_anglebands(view_zenith, imgref, vz_path)
+    resample_anglebands(view_azimuth, imgref, va_path)
 
     return sz_path, sa_path, vz_path, va_path
 
@@ -350,13 +448,11 @@ def gen_s2_ang(path):
        zipfile (str): path to zipfile.
     """
     print('Generating angles from {}'.format(path), flush=True)
-    if path.find("_MSIL2A_") is not -1:
-        print('ERROR: Input uses L1C product, not L2A. Change your input file.', flush=True)
-    elif path.endswith('.SAFE'):
+    if path.endswith('.SAFE'):
         sz_path, sa_path, vz_path, va_path = gen_s2_ang_from_SAFE(path) #path to SAFE
-    elif path.endswith('MTD_TL.xml'):
-        sz_path, sa_path, vz_path, va_path = gen_s2_ang_from_xml(path) #path MTD_TL.xml
     elif path.endswith('.zip'):
         sz_path, sa_path, vz_path, va_path = gen_s2_ang_from_zip(path) #path to .zip
+    else:
+        sz_path, sa_path, vz_path, va_path = gen_s2_ang_from_folder(path)
 
     return sz_path, sa_path, vz_path, va_path
