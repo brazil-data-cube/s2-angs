@@ -76,47 +76,52 @@ Dependencies
 Installing via Git
 ------------------
 
-```
-python3 -m pip install git+https://github.com/brazil-data-cube/s2-angs
-```
+.. code-block:: console
+
+    python3 -m pip install git+https://github.com/brazil-data-cube/s2-angs
+
 
 or
 
-```
-git clone https://github.com/brazil-data-cube/s2-angs
-cd s2-angs
-pip install .
-```
+.. code-block:: console
+
+    git clone https://github.com/brazil-data-cube/s2-angs
+    cd s2-angs
+    pip install .
 
 Usage
 -----
 
-```
-import s2_angs
+.. code-block:: python
 
-#You can indicate a .zip, .SAFE or a folder containing S2 Data.
-s2_angs.gen_s2_ang('/path/to/my/S2_file/S2B_MSIL1C_20191223T131239_N0208_R138_T23KMR_20191223T135458.zip')
-```
+    import s2_angs
+
+    #You can indicate a .zip, .SAFE or a folder containing S2 Data.
+    s2_angs.gen_s2_ang('/path/to/my/S2_file/S2B_MSIL1C_20191223T131239_N0208_R138_T23KMR_20191223T135458.zip')
+
 
 Docker
 ------
 
 Build the image from the root of this repository.
 
-```
-docker build -t s2angs .
-```
+.. code-block:: console
+
+    docker build -t s2angs .
 
 run a docker container mounting an input-dir and provide the file name, e.g. S2A_MSIL1C_20201013T144731_N0209_R139_T19MGV_20201013T164036.SAFE.
 The ouput will be generated in the same folder for .zip files or within GRANULE for .SAFE
-```
-docker run --rm -v /path/to/my/S2_file/:/mnt/input-dir s2angs S2A_MSIL1C_20201013T144731_N0209_R139_T19MGV_20201013T164036.SAFE
-```
+
+.. code-block:: console
+
+    docker run --rm -v /path/to/my/S2_file/:/mnt/input-dir s2angs S2A_MSIL1C_20201013T144731_N0209_R139_T19MGV_20201013T164036.SAFE
 
 You can also provide an output folder to specify where the angles should be exported.
-```
-docker run --rm -v /path/to/my/S2_file/:/mnt/input-dir -v /path/to/my/output/:/mnt/output-dir s2angs S2A_MSIL1C_20201013T144731_N0209_R139_T19MGV_20201013T164036.SAFE
-```
+
+.. code-block:: console
+
+    docker run --rm -v /path/to/my/S2_file/:/mnt/input-dir -v /path/to/my/output/:/mnt/output-dir s2angs S2A_MSIL1C_20201013T144731_N0209_R139_T19MGV_20201013T164036.SAFE
+
 
 Results
 -------
@@ -124,59 +129,52 @@ Intermediary files (matrix 23x23)
 +++++++++++++++++++++++++++++++++
 Solar_azimuth_23
 
-.. image:: https://github.com/brazil-data-cube/s2-angs/blob/master/imgs/Solar_azimuth_23.png
-        :width: 100
-        :target: https://github.com/brazil-data-cube/s2-angs/blob/master/doc/imgs/Solar_azimuth_23.png
-        :alt: Solar_azimuth_23
+.. image:: imgs/Solar_azimuth_23.png
+   :width: 200
+   :target: imgs/Solar_azimuth_23.png
+   :alt: Solar_azimuth_resampled
 
 Solar_zenith_23
 
-.. image:: https://github.com/brazil-data-cube/s2-angs/blob/master/imgs/Solar_zenith_23.png
-        :width: 100
-        :target: https://github.com/brazil-data-cube/s2-angs/blob/master/imgs/Solar_zenith_23.png
-        :alt: Solar_azimuth_23
+.. image:: imgs/Solar_zenith_23.png
+   :width: 200
+   :alt: Solar_zenith_23
 
 View_azimuth_23
 
-.. image:: https://github.com/brazil-data-cube/s2-angs/blob/master/imgs/View_azimuth_23.png
-        :width: 100
-        :target: https://github.com/brazil-data-cube/s2-angs/blob/master/imgs/View_azimuth_23.png
-        :alt: Solar_azimuth_23
+.. image:: imgs/View_azimuth_23.png
+   :width: 200
+   :alt: View_azimuth_23
 
 View_zenith_23
 
-.. image:: https://github.com/brazil-data-cube/s2-angs/blob/master/imgs/View_zenith_23.png
-        :width: 100
-        :target: https://github.com/brazil-data-cube/s2-angs/blob/master/imgs/View_zenith_23.png
-        :alt: Solar_azimuth_23
+.. image:: imgs/View_zenith_23.png
+   :width: 200
+   :alt: View_zenith_23
 
 
 Resampled
 +++++++++
 Solar_azimuth_resampled
 
-.. image:: https://github.com/brazil-data-cube/s2-angs/blob/master/imgs/Solar_azimuth_resampled.png
-        :width: 100
-        :target: https://github.com/brazil-data-cube/s2-angs/blob/master/imgs/Solar_azimuth_resampled.png
-        :alt: Solar_azimuth_23
+.. image:: imgs/Solar_azimuth_resampled.png
+   :width: 200
+   :alt: Solar_azimuth
 
 Solar_zenith_resample
 
-.. image:: https://github.com/brazil-data-cube/s2-angs/blob/master/imgs/Solar_zenith_resample.png
-        :width: 100
-        :target: https://github.com/brazil-data-cube/s2-angs/blob/master/imgs/Solar_zenith_resample.png
-        :alt: Solar_azimuth_23
+.. image:: imgs/Solar_zenith_resampled.png
+   :width: 200
+   :alt: Solar_zenith_resample
 
 View_azimuth_resample
 
-.. image:: https://github.com/brazil-data-cube/s2-angs/blob/master/imgs/View_zenith_azimuth_resample.png
-        :width: 100
-        :target: https://github.com/brazil-data-cube/s2-angs/blob/master/imgs/View_zenith_azimuth_resample.png
-        :alt: Solar_azimuth_23
+.. image:: imgs/View_azimuth_resampled.png
+   :width: 200
+   :alt: View_zenith_azimuth_resample
 
 View_zenith_resample
 
-.. image:: https://github.com/brazil-data-cube/s2-angs/blob/master/imgs/View_zenith_resample.png
-        :width: 100
-        :target: https://github.com/brazil-data-cube/s2-angs/blob/master/imgs/View_zenith_resample.png
-        :alt: Solar_azimuth_23
+.. image:: imgs/View_zenith_resampled.png
+   :width: 200
+   :alt: View_zenith_resample
