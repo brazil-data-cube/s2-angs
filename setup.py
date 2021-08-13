@@ -73,10 +73,10 @@ setup(
     license='MIT',
     author='Brazil Data Cube Team',
     author_email='brazildatacube@inpe.br',
-    url='https://github.com/brazil-data-cube/sentinel2_angle_bands',
+    url='https://github.com/brazil-data-cube/s2-angs',
     project_urls={
-        'Repository': 'https://github.com/brazil-data-cube/sentinel2_angle_bands',
-        'Issues': 'https://github.com/brazil-data-cube/sentinel2_angle_bands/issues',
+        'Repository': 'https://github.com/brazil-data-cube/s2-angs',
+        'Issues': 'https://github.com/brazil-data-cube/s2-angs/issues',
         'Documentation': 'https://s2angs.readthedocs.io/en/latest/'
     },
     packages=packages,
