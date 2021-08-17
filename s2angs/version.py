@@ -8,4 +8,4 @@
 
 """Version information for Python Client Library for Sentinel-2 Angle Bands."""
 
-__version__ = '0.4.0'
+__version__ = '0.4.1'

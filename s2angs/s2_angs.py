@@ -3,6 +3,7 @@ import glob
 import os
 import shutil
 import xml.etree.ElementTree as ET
+from pathlib import Path
 from zipfile import ZipFile
 # 3rdparty
 import affine
@@ -20,7 +21,7 @@ from .s2_sensor_angs.s2_sensor_angs import s2_sensor_angs
 def extract_tileid(mtdmsi):
     """Get tile id from MTD_MSI.xml file.
     Parameters:
-       xml (str): path to MTD_MSI.xml.
+       mtdmsi (str): path to MTD_MSI.xml.
     Returns:
        str: .SAFE tile id.
     """
@@ -158,10 +159,9 @@ def extract_sensor_angles(xml):
 def write_raster(array, file_name, profile):
     """Writes intermediary angle bands (not resampled, as 23x23 5000m spatial resolution).
     Parameters:
-       newRasterfn (str): output raster file name.
-       rasterOrigin (tuple): gdal geotransform origin tuple (geotrans[0],geotrans[3]).
-       proj (str): gdal projection.
        array (array): angle values array.
+       file_name (str): output raster file name.
+       profile (dict): rasterio profile.
     """
     new_dataset = rasterio.open(
         file_name,
@@ -199,7 +199,7 @@ def generate_anglebands(mtd):
         imgref.sort()
         imgref=imgref[0]
     except IndexError:
-        raise IndexError("Missing band B04 .jp2 file")
+        raise IndexError(f"Missing band B04 .jp2 file on {imgFolder}")
 
     src_dataset = rasterio.open(imgref)
 
@@ -223,9 +223,10 @@ def generate_anglebands(mtd):
 def resample_anglebands(array, imgref, filename_out, filename_intermed=None):
     """Resample angle bands.
     Parameters:
-       ang_matrix (arr): matrix of angle values.
+       array (arr): matrix of angle values.
        imgref (str): path to image that will be used as reference.
-       filename (str): filename of the resampled angle band.
+       filename_out (str): filename of the resampled angle band.
+       filename_intermed (str): filename of the intermediary angle bands (not resampled).
     """
     src_dataset = rasterio.open(imgref)
     profile = src_dataset.profile
@@ -300,7 +301,10 @@ def resample_anglebands(array, imgref, filename_out, filename_intermed=None):
 def generate_resampled_anglebands(mtdmsi, mtd, imgFolder, angFolder):
     """Generates angle bands resampled to 10 meters.
     Parameters:
-       xml (str): path to MTD_TL.xml.
+       mtdmsi (str): path to MTD_TL.xml.
+       mtd (str): path to MTD_TL.xml.
+       imgFolder (str): path to IMG_DATA folder.
+       angFolder (str): output path to angle bands.
     Returns:
        str, str, str, str: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
@@ -320,7 +324,7 @@ def generate_resampled_anglebands(mtdmsi, mtd, imgFolder, angFolder):
         imgref_list.sort()
         imgref = imgref_list[0]
     except IndexError:
-        raise IndexError("Missing band B04 .jp2 file") #TODO DIR
+        raise IndexError(f"Missing band B04 .jp2 file on {imgFolder}")
 
     scenename = extract_tileid(mtdmsi)
 
@@ -352,10 +356,11 @@ def xmls_from_safe(SAFEfile):
     return mtdmsi, mtd
 
 
-def gen_s2_ang_from_SAFE(SAFEfile):
+def gen_s2_ang_from_SAFE(SAFEfile, output_dir=None):
     """Generate Sentinel 2 angles using .SAFE.
     Parameters:
        SAFEfile (str): path to Sentinel-2 .SAFE folder.
+       output_dir (str) (optional): path to output folder.
     Returns:
        sz_path, sa_path, vz_path, va_path: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
@@ -364,26 +369,32 @@ def gen_s2_ang_from_SAFE(SAFEfile):
     path = os.path.split(mtd)[0]
     imgFolder = os.path.join(path, "IMG_DATA")
     angFolder = os.path.join(path, "ANG_DATA")
+    if output_dir is not None:
+        angFolder = output_dir
 
     ### Generates resampled anglebands (to 10m)
     sz_path, sa_path, vz_path, va_path = generate_resampled_anglebands(mtdmsi, mtd, imgFolder, angFolder)
     return sz_path, sa_path, vz_path, va_path
 
 
-def gen_s2_ang_from_zip(zipfile):
+def gen_s2_ang_from_zip(zipfile, output_dir=None):
     """Generate Sentinel 2 angles using a zipped .SAFE.
     Parameters:
        zipfile (str): path to zipfile.
+       output_dir (str) (optional): path to output folder.
     Returns:
        str, str, str, str: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
     with ZipFile(zipfile) as zipObj:
         zipfoldername = zipObj.namelist()[0][:-1]
     work_dir = os.getcwd()
+    if output_dir is not None:
+        work_dir = output_dir
     os.makedirs('s2_ang_tmp', exist_ok=True)
-    temp_dir = os.path.join(os.getcwd(), 's2_ang_tmp')
-    shutil.unpack_archive(zipfile, temp_dir, 'zip')
-    SAFEfile = os.path.join(temp_dir, zipfoldername)
+    s2_ang_tmp = os.path.join(os.getcwd(), 's2_ang_tmp')
+    temp_SAFE = os.path.join(s2_ang_tmp, zipfoldername)
+    shutil.unpack_archive(zipfile, temp_SAFE, 'zip')
+    SAFEfile = os.path.join(temp_SAFE, zipfoldername)
     mtdmsi, mtd = xmls_from_safe(SAFEfile)
     path = os.path.split(mtd)[0]
     imgFolder = os.path.join(path, "IMG_DATA")
@@ -392,16 +403,27 @@ def gen_s2_ang_from_zip(zipfile):
     ### Generates resampled anglebands (to 10m)
     sz_path, sa_path, vz_path, va_path = generate_resampled_anglebands(mtdmsi, mtd, imgFolder, angFolder)
     ang_dir = os.path.join(SAFEfile,'GRANULE', os.listdir(os.path.join(SAFEfile,'GRANULE/'))[0], 'ANG_DATA')
-    shutil.move(ang_dir, work_dir)
-    shutil.rmtree(temp_dir)
+
+    new_sz_path = os.path.join(work_dir, Path(sz_path).name)
+    new_sa_path = os.path.join(work_dir, Path(sa_path).name)
+    new_vz_path = os.path.join(work_dir, Path(vz_path).name)
+    new_va_path = os.path.join(work_dir, Path(va_path).name)
+
+    shutil.move(sz_path, new_sz_path)
+    shutil.move(sa_path, new_sa_path)
+    shutil.move(vz_path, new_vz_path)
+    shutil.move(va_path, new_va_path)
+    shutil.rmtree(temp_SAFE)
+    Path(s2_ang_tmp).rmdir()
 
     return sz_path, sa_path, vz_path, va_path
 
 
-def gen_s2_ang_from_folder(folder):
+def gen_s2_ang_from_folder(folder, output_dir=None):
     """Generate Sentinel 2 angles using all files in a single folder.
     Parameters:
        folder (str): path to Sentinel-2 folder.
+       output_dir (str) (optional): path to output folder.
     Returns:
        sz_path, sa_path, vz_path, va_path: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
@@ -410,6 +432,8 @@ def gen_s2_ang_from_folder(folder):
 
     ### Generates resampled anglebands (to 10m)
     ang_folder = os.path.join(folder, 'ANG_DATA')
+    if output_dir is not None:
+        angFolder = output_dir
 
     os.makedirs(ang_folder, exist_ok=True)
 
@@ -442,17 +466,20 @@ def gen_s2_ang_from_folder(folder):
     return sz_path, sa_path, vz_path, va_path
 
 
-def gen_s2_ang(path):
+def gen_s2_ang(path, output_dir=None):
     """Generate Sentinel 2 angle bands.
     Parameters:
-       zipfile (str): path to zipfile.
+       path (str): path to zipfile, .SAFE or folder containing S2 data.
+       output_dir (str) (optional): path to output folder.
+    Returns:
+       sz_path, sa_path, vz_path, va_path: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
     print('Generating angles from {}'.format(path), flush=True)
     if path.endswith('.SAFE'):
-        sz_path, sa_path, vz_path, va_path = gen_s2_ang_from_SAFE(path) #path to SAFE
+        sz_path, sa_path, vz_path, va_path = gen_s2_ang_from_SAFE(path, output_dir) #path to SAFE
     elif path.endswith('.zip'):
-        sz_path, sa_path, vz_path, va_path = gen_s2_ang_from_zip(path) #path to .zip
+        sz_path, sa_path, vz_path, va_path = gen_s2_ang_from_zip(path, output_dir) #path to .zip
     else:
-        sz_path, sa_path, vz_path, va_path = gen_s2_ang_from_folder(path)
+        sz_path, sa_path, vz_path, va_path = gen_s2_ang_from_folder(path, output_dir)
 
     return sz_path, sa_path, vz_path, va_path
