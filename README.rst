@@ -62,7 +62,7 @@ Sentinel-2 Angle Bands
 
 Generate Sentinel-2 Resampled Angle bands (Solar Azimuth, Solar Zenith, View Azimuth, View Zenith).
 
-This script uses Sentinel-2 L1C products as input to generate angle bands (Solar Azimuth, Solar Zenith, View Azimuth and View Zenith). Originally the angles are provided as a 23x23 grid (5000 m resolution) in MTD_TL.xml file (Inside GRANULE folder). This script resample the angles through bilinear function to a 10 m spatial resolution.
+This script uses Sentinel-2 L1C products as input to generate angle bands (Solar Azimuth, Solar Zenith, View Azimuth and View Zenith). Originally the angles are provided as a 23x23 grid (5000 m resolution) in MTD_TL.xml file (Inside GRANULE folder). This script can resample the angles through bilinear function to a 10 m spatial resolution or estimatete angles using Pahlevant et. al (2017) approach published in 10.1016/j.rse.2017.08.033.
 
 
 Dependencies
