@@ -16,26 +16,6 @@ Python Client Library for Sentinel-2 Angle Bands
         :alt: Software License
 
 
-.. image:: https://drone.dpi.inpe.br/api/badges/brazil-data-cube/s2-angs/status.svg
-        :target: https://drone.dpi.inpe.br/brazil-data-cube/s2-angs
-        :alt: Build Status
-
-
-.. image:: https://codecov.io/gh/brazil-data-cube/s2-angs/branch/master/graph/badge.svg
-        :target: https://codecov.io/gh/brazil-data-cube/s2-angs
-        :alt: Code Coverage Test
-
-
-.. image:: https://readthedocs.org/projects/s2angs/badge/?version=latest
-        :target: https://s2angs.readthedocs.io/en/latest/
-        :alt: Documentation Status
-
-
-.. image:: https://img.shields.io/badge/lifecycle-maturing-blue.svg
-        :target: https://www.tidyverse.org/lifecycle/#maturing
-        :alt: Software Life Cycle
-
-
 .. image:: https://img.shields.io/github/tag/brazil-data-cube/s2-angs.svg
         :target: https://github.com/brazil-data-cube/s2-angs/releases
         :alt: Release
