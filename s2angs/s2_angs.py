@@ -313,18 +313,17 @@ def generate_resampled_anglebands(mtdmsi, mtd, imgFolder, angFolder):
     if not imgFolder.endswith('/'):
         imgFolder = imgFolder + '/'
 
+    # Use band 4 as reference due to 10m spatial resolution
     safe_jp2 = [f for f in glob.glob(imgFolder + "**/*B04*.jp2", recursive=True)]
     safe_tif = [f for f in glob.glob(imgFolder + "**/*B04*.tif", recursive=True)]
     folder_tif = [f for f in glob.glob(imgFolder + "**/*band4*.tif", recursive=True)]
     imgref_list = safe_jp2 + safe_tif + folder_tif
-    # Use band 4 as reference due to 10m spatial resolution
-    imgref = [f for f in glob.glob(imgFolder + "**/*04*.jp2", recursive=True)]
     # Checks for empty list (No file)
     try:
         imgref_list.sort()
         imgref = imgref_list[0]
     except IndexError:
-        raise IndexError(f"Missing band B04 .jp2 file on {imgFolder}")
+        raise IndexError(f"Missing reference band (4, red) file on {imgFolder}")
 
     scenename = extract_tileid(mtdmsi)
 
