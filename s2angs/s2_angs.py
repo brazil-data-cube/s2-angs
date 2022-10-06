@@ -367,8 +367,8 @@ def xmls_from_safe(SAFEfile):
        str: path to MTD_TL.xml.
     """
     print(SAFEfile)
-    mtdmsi = [f for f in glob.glob(os.path.join(SAFEfile,"MTD_MSIL*.xml"), recursive=True)][0]
-    mtd = os.path.join(SAFEfile, 'GRANULE', os.path.join(os.listdir(os.path.join(SAFEfile,'GRANULE/'))[0], 'MTD_TL.xml'))
+    mtdmsi = [f for f in glob.glob(os.path.join(SAFEfile, "MTD_MSIL*.xml"), recursive=True)][0]
+    mtd = os.path.join(SAFEfile, 'GRANULE', os.path.join(os.listdir(os.path.join(SAFEfile, 'GRANULE/'))[0], 'MTD_TL.xml'))
 
     return mtdmsi, mtd
 

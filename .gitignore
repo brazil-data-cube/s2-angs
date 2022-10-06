@@ -21,3 +21,4 @@ build/
 __pycache__/
 *.egg-info/
 .eggs/
+.idea/
