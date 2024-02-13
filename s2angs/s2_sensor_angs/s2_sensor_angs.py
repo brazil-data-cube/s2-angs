@@ -22,6 +22,7 @@
 # suplementary data "Program for generating Sentinel-2's high-resolution angle coefficients"
 # at https://www.sciencedirect.com/science/article/pii/S0034425717303991
 
+#%%
 import logging
 import math
 import numpy
@@ -31,6 +32,7 @@ from math import sqrt, cos, sin, tan, pi, asin, acos, atan, atan2
 from pathlib import Path
 
 import rasterio
+from rasterio import features
 from skimage.transform import resize
 
 
@@ -302,6 +304,7 @@ def get_angleobs(XML_File):
 
     return (tile_id, AngleObs)
 
+#%%
 
 def get_detfootprint(XML_File):
 
@@ -333,47 +336,98 @@ def get_detfootprint(XML_File):
     bandfoot = []
     for foot in footprints:
         bandId = int(foot[0])
-        tree2 = ET.parse(foot[1])
-        root2 = tree2.getroot()
-        for child in root2:
-            if child.tag[-11:] == 'maskMembers':
-                thismember = child
-                for feature in thismember:
-                    if feature.tag[-11:] == 'MaskFeature':
-                        for thisattribute in feature.attrib:
-                            if thisattribute[-2:] == 'id':
-                                detId = int (feature.attrib[thisattribute].split('-')[2])
-                                bandName = feature.attrib[thisattribute].split('-')[1]
-                                thisband = { 'detId' : detId , 'bandId' : bandId, 'bandName' : bandName, 'coords' : [] }
-                        thisfeature = feature
-                        for extent in thisfeature:
-                            if extent.tag[-8:] == 'extentOf':
-                                thisextent = extent
-                                for polygon in thisextent:
-                                    if polygon.tag[-7:] == 'Polygon':
-                                        thispolygon = polygon
-                                        for exterior in thispolygon:
-                                            if exterior.tag[-8:] == 'exterior':
-                                                thisexterior = exterior
-                                                for ring in thisexterior:
-                                                    if ring.tag[-10:] == 'LinearRing':
-                                                        thisring = ring
-                                                        for poslist in thisring:
-                                                            if poslist.tag[-7:] == 'posList':
-                                                                ncoord = int(poslist.attrib['srsDimension'])
-                                                                fields = poslist.text.split(' ')
-                                                                index = 0
-                                                                for field in fields:
-                                                                    if index == 0:
-                                                                        x = float(field)
-                                                                    elif index == 1:
-                                                                        y = float(field)
-                                                                        thisband['coords'].append((x,y))
-                                                                    index = (index + 1) % ncoord
-                                                                bandfoot.append(thisband)
+        bandName = 'B' + str(bandId+1).zfill(2)
+        
+        # in the old metadata version foot[1] is the path to a .gml file (e.g. MSK_DETFOO_BXX.gml, for each band XX)
+        if foot[1].endswith('.gml'):
+            tree2 = ET.parse(foot[1])
+            root2 = tree2.getroot()
+            for child in root2:
+                if child.tag[-11:] == 'maskMembers':
+                    thismember = child
+                    for feature in thismember:
+                        if feature.tag[-11:] == 'MaskFeature':
+                            for thisattribute in feature.attrib:
+                                if thisattribute[-2:] == 'id':
+                                    detId = int (feature.attrib[thisattribute].split('-')[2])
+                                    bandName = feature.attrib[thisattribute].split('-')[1]
+                                    thisband = { 'detId' : detId , 'bandId' : bandId, 'bandName' : bandName, 'coords' : [] }
+                            thisfeature = feature
+                            for extent in thisfeature:
+                                if extent.tag[-8:] == 'extentOf':
+                                    thisextent = extent
+                                    for polygon in thisextent:
+                                        if polygon.tag[-7:] == 'Polygon':
+                                            thispolygon = polygon
+                                            for exterior in thispolygon:
+                                                if exterior.tag[-8:] == 'exterior':
+                                                    thisexterior = exterior
+                                                    for ring in thisexterior:
+                                                        if ring.tag[-10:] == 'LinearRing':
+                                                            thisring = ring
+                                                            for poslist in thisring:
+                                                                if poslist.tag[-7:] == 'posList':
+                                                                    ncoord = int(poslist.attrib['srsDimension'])
+                                                                    fields = poslist.text.split(' ')
+                                                                    index = 0
+                                                                    for field in fields:
+                                                                        if index == 0:
+                                                                            x = float(field)
+                                                                        elif index == 1:
+                                                                            y = float(field)
+                                                                            thisband['coords'].append((x,y))
+                                                                        index = (index + 1) % ncoord
+                                                                    bandfoot.append(thisband)
+                                                                    
+        # in the new metadata version foot[1] is the path to a .jp2 file (e.g. MSK_DETFOO_BXX.jp2, for each band XX)
+        elif foot[1].endswith('.jp2') and bandId == 3: # band 4 is the reference
+            # # uncomment lines if converting bandfoot list to a GeoJSON feature collection
+            # import geojson
+            # raster_name = os.path.basename(foot[1]).split('.')[0]
+            
+            with rasterio.open(foot[1]) as src:
+                # read the band 1 and polygonize it, the id of the polygon will be the value of the pixels
+                image = src.read(1)
+                shapes = rasterio.features.shapes(image, mask=None, connectivity=4, transform=src.transform)
+                for shape, value in shapes:
+                    if value != 0:
+                        # the value of the pixel is the detector id
+                        bandfoot.append({'detId': int(value), 'bandId': bandId, 'bandName': bandName, 'coords': shape['coordinates'][0]})
+                        
+                        # # uncomment lines if converting bandfoot list to a GeoJSON feature collection #
+                        # # ----------------------------------------------------------------------------#
+                        # features_list = []
+                        # for foot in bandfoot:
+                        #     feature = geojson.Feature(
+                        #         geometry=geojson.Polygon([foot['coords']]),
+                        #         properties={'detId': foot['detId'], 'bandId': foot['bandId'], 'bandName': foot['bandName']}
+                        #     )
+                        #     features_list.append(feature)
 
+                        # feature_collection = geojson.FeatureCollection(features_list)
+
+                        # # Set the CRS of the GeoJSON as the CRS of the original raster
+                        # original_crs = src.crs
+                        # feature_collection.crs = { "type": "name", "properties": { "name": original_crs.to_string() }}
+
+                        # # Write the GeoJSON feature collection to a file
+                        # with open(Foot_Dir + raster_name + '.geojson', 'w') as f:
+                        #     geojson.dump(feature_collection, f)
+    
     return bandfoot
 
+# # test
+# XML_File_old = '/export/homes/tkenda/S2A_MSIL1C_20210102T104441_N0209_R008_T31UFS_20210102T125215.SAFE/GRANULE/L1C_T31UFS_A028891_20210102T104435/MTD_TL.xml'
+# XML_File_new = '/export/homes/tkenda/S2B_MSIL1C_20230527T103629_N0509_R008_T31UFS_20230527T111931.SAFE/GRANULE/L1C_T31UFS_A032495_20230527T103641/MTD_TL.xml'
+
+# bandfoot_old = get_detfootprint(XML_File_old)
+# bandfoot_new = get_detfootprint(XML_File_new)
+
+# # get bandId 3 only
+# t_o = [foot for foot in bandfoot_old if foot['bandId'] == 3]
+# t_n = [foot for foot in bandfoot_new if foot['bandId'] == 3]
+
+#%%
 
 # Define functions used to construct image observations
 def Magnitude(A):
@@ -681,8 +735,24 @@ def WriteHeader(Out_File, out_rows, out_cols, ul_x, ul_y, gsd, zone, n_or_s):
     ofile.close()
     return Hdr_File
 
-
+#%%
 def s2_sensor_angs(XML_File, imgref, va_path, vz_path, gsd=[60, 10, 10, 10, 20, 20, 20, 10, 20, 60, 60, 20, 20], subsamp=10):
+    """
+    Calculate sensor angles (azimuth and zenith) for Sentinel-2 satellite imagery.
+    Note : it only create a raster based on B04 (bandId 3) observations.
+
+    Args:
+        XML_File (str): Path to the XML file containing angle observations metadata.
+        imgref (str): Path to the reference image.
+        va_path (str): Path to save the azimuth angle output.
+        vz_path (str): Path to save the zenith angle output.
+        gsd (list, optional): Ground sampling distance for each band. Defaults to [60, 10, 10, 10, 20, 20, 20, 10, 20, 60, 60, 20, 20].
+        subsamp (int, optional): Subsampling factor. Defaults to 10.
+
+    Returns:
+        None
+    """
+
     # # Sudipta spatial subset setting
     sul_lat = sul_lon = slr_lat = slr_lon = None
 
@@ -879,3 +949,21 @@ def s2_sensor_angs(XML_File, imgref, va_path, vz_path, gsd=[60, 10, 10, 10, 20, 
             new_dataset.close()
 
     return va_path, vz_path
+
+#%%
+# # test 
+# import glob
+
+# XML_File_old = '/export/homes/tkenda/S2A_MSIL1C_20210102T104441_N0209_R008_T31UFS_20210102T125215.SAFE/GRANULE/L1C_T31UFS_A028891_20210102T104435/MTD_TL.xml'
+# XML_File_new = '/export/homes/tkenda/S2B_MSIL1C_20230527T103629_N0509_R008_T31UFS_20230527T111931.SAFE/GRANULE/L1C_T31UFS_A032495_20230527T103641/MTD_TL.xml'
+
+# mtd = '/export/homes/tkenda/S2B_MSIL1C_20230527T103629_N0509_R008_T31UFS_20230527T111931.SAFE/GRANULE/L1C_T31UFS_A032495_20230527T103641/MTD_TL.xml'
+# path = os.path.split(mtd)[0]
+# imgFolder = path + "/IMG_DATA/"
+# angFolder = path + "/ANG_DATA/"
+# scenename = 'S2B_MSIL1C_20230527T103629_N0509_R008_T31UFS_20230527T111931'
+# vz_path = os.path.join(angFolder, scenename + '_VZAr.tif')
+# va_path = os.path.join(angFolder, scenename + '_VAAr.tif')
+# imgref = [f for f in glob.glob(imgFolder + "**/*04*.jp2", recursive=True)][0]
+
+# va_path, vz_path = s2_sensor_angs(XML_File_new, imgref, va_path, vz_path)
