@@ -337,7 +337,7 @@ def get_detfootprint(XML_File):
     for foot in footprints:
         bandId = int(foot[0])
         bandName = 'B' + str(bandId+1).zfill(2)
-        
+
         # in the old metadata version foot[1] is the path to a .gml file (e.g. MSK_DETFOO_BXX.gml, for each band XX)
         if foot[1].endswith('.gml'):
             tree2 = ET.parse(foot[1])
@@ -378,13 +378,13 @@ def get_detfootprint(XML_File):
                                                                             thisband['coords'].append((x,y))
                                                                         index = (index + 1) % ncoord
                                                                     bandfoot.append(thisband)
-                                                                    
+
         # in the new metadata version foot[1] is the path to a .jp2 file (e.g. MSK_DETFOO_BXX.jp2, for each band XX)
         elif foot[1].endswith('.jp2') and bandId == 3: # band 4 is the reference
             # # uncomment lines if converting bandfoot list to a GeoJSON feature collection
             # import geojson
             # raster_name = os.path.basename(foot[1]).split('.')[0]
-            
+
             with rasterio.open(foot[1]) as src:
                 # read the band 1 and polygonize it, the id of the polygon will be the value of the pixels
                 image = src.read(1)
@@ -393,7 +393,7 @@ def get_detfootprint(XML_File):
                     if value != 0:
                         # the value of the pixel is the detector id
                         bandfoot.append({'detId': int(value), 'bandId': bandId, 'bandName': bandName, 'coords': shape['coordinates'][0]})
-                        
+
                         # # uncomment lines if converting bandfoot list to a GeoJSON feature collection #
                         # # ----------------------------------------------------------------------------#
                         # features_list = []
@@ -413,7 +413,7 @@ def get_detfootprint(XML_File):
                         # # Write the GeoJSON feature collection to a file
                         # with open(Foot_Dir + raster_name + '.geojson', 'w') as f:
                         #     geojson.dump(feature_collection, f)
-    
+
     return bandfoot
 
 # # test
