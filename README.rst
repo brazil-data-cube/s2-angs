@@ -112,6 +112,12 @@ View_zenith_resample
    :alt: View_zenith_resample
 
 
+**Details on the output products**
+   - the function `s2angs.gen_s2_ang` creates the output rasters based only on the angles from the band 4 (band Id 3).
+   - the angles given in the output rasters are given in degrees but have been multiplied by  100 to be stored as integers in the rasters.
+   - most of the data are derived from the L1C MTD_TL.xml metadata files (found in `.../GRANULE/L1C_scenename/MTD_TL.xml`)
+
+
 License
 =======
 
