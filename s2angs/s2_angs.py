@@ -18,11 +18,14 @@
 
 # Python Native
 import glob
+import logging
+import logging.config
 import os
 import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from zipfile import ZipFile
+
 # 3rdparty
 import affine
 import numpy
@@ -32,9 +35,31 @@ from skimage.transform import resize
 
 from .s2_sensor_angs.s2_sensor_angs import s2_sensor_angs
 
+
 ################################################################################
 ## Generate Sentinel Angle view bands
 ################################################################################
+
+def logging_configs():
+    """Logging Configurations."""
+    # create logger
+    global logger
+    logger = logging.getLogger(__name__) # or pass an explicit name here, e.g. "mylogger"
+    logger.setLevel(logging.INFO)
+
+    # create console handler and set level to debug
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+
+    # create formatter
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    # add formatter to ch
+    ch.setFormatter(formatter)
+
+    # add ch to logger
+    logger.addHandler(ch)
+
 
 def extract_tileid(mtdmsi):
     """Get tile id from MTD_MSI.xml file.
@@ -169,6 +194,8 @@ def extract_sensor_angles(xml):
                         az = float(values[cindex][1])
                         sensor_zenith_values[bandId, rindex,cindex] = zen
                         sensor_azimuth_values[bandId, rindex,cindex] = az
+    # In the next two lines, 7 is adopted as bandId since for our application we opted to not generate the angle bands for each of the spectral bands. Here we adopted bandId 7 due to its use in vegetation applications
+    # Also on the next two lines, we are using 22x22 matrices since the angle bands pixels represent 5000 meters. Sentinel-2 images area 109800x109800 meters. The 23x23 5000m matrix is equivalent to 11500x11500m. Based on that we opted to not use the last column and row. More information can be found on STEP ESA forum: https://forum.step.esa.int/t/generate-view-angles-from-metadata-sentinel-2/5598
     sensor_zenith_values = resize(sensor_zenith_values[7],(22,22))
     sensor_azimuth_values = resize(sensor_azimuth_values[7],(22,22))
     return(sensor_zenith_values, sensor_azimuth_values)
@@ -326,6 +353,7 @@ def generate_resampled_anglebands(mtdmsi, mtd, imgFolder, angFolder):
     Returns:
        str, str, str, str: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
+    logging.debug('Generating resampled anglebands')
     os.makedirs(angFolder, exist_ok=True)
 
     if not imgFolder.endswith('/'):
@@ -381,6 +409,7 @@ def gen_s2_ang_from_SAFE(SAFEfile, output_dir=None):
     Returns:
        sz_path, sa_path, vz_path, va_path: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
+    logging.debug('Using .SAFE approach')
     mtdmsi, mtd = xmls_from_safe(SAFEfile)
 
     path = os.path.split(mtd)[0]
@@ -402,6 +431,8 @@ def gen_s2_ang_from_zip(zipfile, output_dir=None):
     Returns:
        str, str, str, str: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
+    logging.debug('Using .zip approach')
+
     with ZipFile(zipfile) as zipObj:
         zipfoldername = zipObj.namelist()[0][:-1]
     work_dir = os.getcwd()
@@ -444,6 +475,8 @@ def gen_s2_ang_from_folder(folder, output_dir=None):
     Returns:
        sz_path, sa_path, vz_path, va_path: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
+    logging.debug('Using Folder approach')
+
     mtdmsi = [f for f in glob.glob(os.path.join(folder,"MTD_MSIL*.xml"), recursive=True)][0]
     mtd = os.path.join(folder, 'MTD_TL.xml')
 
@@ -491,7 +524,8 @@ def gen_s2_ang(path, output_dir=None):
     Returns:
        sz_path, sa_path, vz_path, va_path: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
-    print('Generating angles from {}'.format(path), flush=True)
+    logging_configs()
+    logger.info(f'Generating angles from {path}')
     if path.endswith('.SAFE'):
         sz_path, sa_path, vz_path, va_path = gen_s2_ang_from_SAFE(path, output_dir) #path to SAFE
     elif path.endswith('.zip'):
