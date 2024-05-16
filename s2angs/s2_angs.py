@@ -353,7 +353,7 @@ def generate_resampled_anglebands(mtdmsi, mtd, imgFolder, angFolder):
     Returns:
        str, str, str, str: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
-    logging.debug('Generating resampled anglebands')
+    logger.debug('Generating resampled anglebands')
     os.makedirs(angFolder, exist_ok=True)
 
     if not imgFolder.endswith('/'):
@@ -409,7 +409,7 @@ def gen_s2_ang_from_SAFE(SAFEfile, output_dir=None):
     Returns:
        sz_path, sa_path, vz_path, va_path: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
-    logging.debug('Using .SAFE approach')
+    logger.debug('Using .SAFE approach')
 
     mtdmsi, mtd = xmls_from_safe(SAFEfile)
 
@@ -432,7 +432,7 @@ def gen_s2_ang_from_zip(zipfile, output_dir=None):
     Returns:
        str, str, str, str: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
-    logging.debug('Using .zip approach')
+    logger.debug('Using .zip approach')
 
     with ZipFile(zipfile) as zipObj:
         zipfoldername = zipObj.namelist()[0][:-1]
@@ -476,7 +476,7 @@ def gen_s2_ang_from_folder(folder, output_dir=None):
     Returns:
        sz_path, sa_path, vz_path, va_path: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
-    logging.debug('Using Folder approach')
+    logger.debug('Using Folder approach')
 
     mtdmsi = [f for f in glob.glob(os.path.join(folder,"MTD_MSIL*.xml"), recursive=True)][0]
     mtd = os.path.join(folder, 'MTD_TL.xml')
