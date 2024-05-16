@@ -410,6 +410,7 @@ def gen_s2_ang_from_SAFE(SAFEfile, output_dir=None):
        sz_path, sa_path, vz_path, va_path: path to solar zenith image, path to solar azimuth image, path to view (sensor) zenith image and path to view (sensor) azimuth image, respectively.
     """
     logging.debug('Using .SAFE approach')
+
     mtdmsi, mtd = xmls_from_safe(SAFEfile)
 
     path = os.path.split(mtd)[0]
