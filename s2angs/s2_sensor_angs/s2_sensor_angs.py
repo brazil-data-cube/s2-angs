@@ -807,7 +807,7 @@ def s2_sensor_angs(XML_File, imgref, va_path, vz_path, gsd=[60, 10, 10, 10, 20, 
                 lr_s_r = out_rows
                 lr_s_c = out_cols
 
-            logging.info("ul_s_r = {}, ul_s_c = {}, lr_s_r = {}, lr_s_c = {}".format(ul_s_r, ul_s_c, lr_s_r, lr_s_c))
+            logging.info(f"ul_s_r = {ul_s_r}, ul_s_c = {ul_s_c}, lr_s_r = {lr_s_r}, lr_s_c = {lr_s_c}")
             #sys.exit(0)
             #######################################################
             ## Sudipta addition to support spatial subset
@@ -951,7 +951,7 @@ def s2_sensor_angs(XML_File, imgref, va_path, vz_path, gsd=[60, 10, 10, 10, 20, 
     return va_path, vz_path
 
 #%%
-# # test 
+# # test
 # import glob
 
 # XML_File_old = '/export/homes/tkenda/S2A_MSIL1C_20210102T104441_N0209_R008_T31UFS_20210102T125215.SAFE/GRANULE/L1C_T31UFS_A028891_20210102T104435/MTD_TL.xml'
